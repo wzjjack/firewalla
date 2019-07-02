@@ -3906,7 +3906,6 @@ class netBot extends ControllerBot {
                   }
                   datamodel.code = 500;
                 }
-                log.info("initData", datamodel)
                 log.info("Sending data", datamodel.replyid, datamodel.id);
                 this.txData(this.primarygid, "hosts", datamodel, "jsondata", null, null, callback);
 
