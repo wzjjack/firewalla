@@ -3834,11 +3834,6 @@ class netBot extends ControllerBot {
   }
 
   msgHandler(gid, rawmsg, callback) {
-    const test = await (dnsTool.getDns("220.181.38.148"))
-    log.info("zhijietest")
-    log.info(dnsTool.getDNSKey("220.181.38.148"))
-    log.info(test)
-    log.info("zhijietest")
     if (rawmsg.mtype === "msg" && rawmsg.message.type === 'jsondata') {
 
       if(!callback) { // cloud mode
