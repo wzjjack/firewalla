@@ -88,6 +88,8 @@ class DNSTool {
     // FIXME: remove this type conversion code after it is released for several months
     await this._convertHashToSortedSet(key);
     const domain = await rclient.zrevrangeAsync(key, 0, 1); // get domain with latest timestamp
+    log.info("zhijie1559new")
+    log.info(domain)
     if (domain && domain.length != 0)
       return domain[0];
     else
