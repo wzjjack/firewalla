@@ -1779,8 +1779,6 @@ module.exports = class HostManager {
           return;
         } else {
           // filters out rules with inactive devices
-          log.info("rules",rules)
-          log.info("this.hosts",this.hosts)
           rules = rules.filter(rule => {
             if (_.isEmpty(rule.scope)) return true;
 
