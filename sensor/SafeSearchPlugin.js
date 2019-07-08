@@ -320,11 +320,9 @@ class SafeSearchPlugin extends Sensor {
   async generateConfig(macAddress, safeDomain, targetDomains) {
     const ip = await this.loadDomainCache(safeDomain);
     if(ip) {
-      let dnsmasqentry = targetDomains.map((targetDomain) => {
+      return targetDomains.map((targetDomain) => {
         return this.getDNSMasqEntry(macAddress, ip, targetDomain);
       })
-      dnsmasqentry.push(`server=208.67.222.222%${macAddress.toUpperCase()}`)
-      return dnsmasqentry
     } else {
       return [];
     }
