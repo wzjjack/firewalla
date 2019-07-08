@@ -650,7 +650,6 @@ module.exports = class {
   }
 
   execute(host, ip, policy, callback) {
-    log.info("execute", arguments)
     if (host.oper == null) {
       host.oper = {};
     }
