@@ -403,7 +403,6 @@ module.exports = class {
   }
 
   hfamily(host, state, callback) {
-    log.info("hfamily")
     log.info("PolicyManager:Family:IPTABLE", host.name());
     this.family(host.o.ipv4Addr, state, callback);
     for (let i in host.ipv6Addr) {

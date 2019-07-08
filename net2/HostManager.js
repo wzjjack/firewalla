@@ -1537,7 +1537,6 @@ module.exports = class HostManager {
           callback(err, null);
         }
       } else {
-        log.info("policyData", data)
         if (data) {
           this.policy = {};
           for (let k in data) {
