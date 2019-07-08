@@ -1207,7 +1207,7 @@ class netBot extends ControllerBot {
       })
       return
     }
-
+    log.info("msg", msg)
     let value = msg.data.value;
 
     switch (msg.data.item) {

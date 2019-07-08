@@ -247,6 +247,7 @@ module.exports = class {
 
   familyDnsAddr(callback) {
     firewalla.getBoneInfo((err, data) => {
+      log.info("data", data)
       if (data && data.config && data.config.dns && data.config.dns.familymode) {
         callback(null, data.config.dns.familymode);
       } else {
@@ -402,6 +403,7 @@ module.exports = class {
   }
 
   hfamily(host, state, callback) {
+    log.info("hfamily")
     log.info("PolicyManager:Family:IPTABLE", host.name());
     this.family(host.o.ipv4Addr, state, callback);
     for (let i in host.ipv6Addr) {
@@ -649,7 +651,7 @@ module.exports = class {
   }
 
   execute(host, ip, policy, callback) {
-
+    log.info("execute", arguments)
     if (host.oper == null) {
       host.oper = {};
     }
