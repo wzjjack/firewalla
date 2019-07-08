@@ -197,9 +197,9 @@ module.exports = function (component) {
   };
 
   wrap.debug = function () {
-    if (logger.levels[getLogLevel()] < logger.levels['debug']) {
-      return // do nothing
-    }
+    // if (logger.levels[getLogLevel()] < logger.levels['debug']) {
+    //   return // do nothing
+    // }
     logger.log.apply(logger, ["debug", component + ": " + argumentsToString(arguments)]);
   };
 
