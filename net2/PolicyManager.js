@@ -258,20 +258,21 @@ module.exports = class {
     });
   }
 
-  family(host, ip, state, callback) {
+  family(host, ip, policy, callback) {
     const ver = features.getVersion('familyMode');
     switch (ver) {
       case 'v2':
-        this.familyV2(ip, state, callback);
+        this.familyV2(ip, policy, callback);
         break;
       case 'v1':
       default:
-        this.familyV1(host, ip, state, callback);
+        this.familyV1(host, ip, policy, callback);
     }
   }
 
-  async familyV1(host, ip, state, callback) {
+  async familyV1(host, ip, policy, callback) {
     const systemFamilyProtectKey = "ext.familyProtect.state"
+    const state = policy.state
     callback = callback || function () {
     }
     log.info("======================ip===========================\n")
