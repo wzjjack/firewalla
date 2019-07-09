@@ -300,7 +300,7 @@ module.exports = class {
     log.info("======================systemFamilyProtectState===========================\n")
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
-      if(macAddress == "84:89:AD:CA:58:7A")state=true //for test
+      if(macAddress == "84:89:AD:CA:58:7A")state=systemFamilyProtectState //for test
       if (ip == "0.0.0.0") {
         if (systemFamilyProtectState == true) {
           dnsmasq.setDefaultNameServers("family", dnsaddrs);
