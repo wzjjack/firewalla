@@ -18,7 +18,7 @@ var instance = null;
 const log = require("./logger.js")("PolicyManager");
 const SysManager = require('./SysManager.js');
 const sysManager = new SysManager('info');
-
+const fs = require('fs');
 const rclient = require('../util/redis_manager.js').getRedisClient()
 const fc = require('../net2/config.js');
 
@@ -41,6 +41,9 @@ const DNSMASQ = require('../extension/dnsmasq/dnsmasq.js');
 const dnsmasq = new DNSMASQ();
 
 const firewalla = require('../net2/Firewalla.js');
+
+const userConfigFolder = firewalla.getUserConfigFolder();
+const devicemasqConfigFolder = `${userConfigFolder}/devicemasq`;
 
 let externalAccessFlag = false;
 
@@ -278,7 +281,7 @@ module.exports = class {
 
     // rm family_filter.conf from v2
     log.info('Dnsmasq: remove family_filter.conf from v2');
-    require('fs').unlink(firewalla.getUserConfigFolder() + '/dns/family_filter.conf', err => {
+    fs.unlink(firewalla.getUserConfigFolder() + '/dns/family_filter.conf', err => {
       if (err) {
         if (err.code === 'ENOENT') {
           log.info('Dnsmasq: No family_filter.conf, skip remove');
@@ -289,8 +292,7 @@ module.exports = class {
     });
     let macAddress = host && host.o && host.o.mac;
     this.familyDnsAddr((err, dnsaddrs) => {
-      log.info("Host macAddress", macAddress)
-      log.info("PolicyManager:Family:IPTABLE", ip, state, dnsaddrs.join(" "));
+      log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
       if (macAddress) {
         this.applyFamilyProtectPerDevice(macAddress, state, dnsaddrs)
       } else {
@@ -305,8 +307,24 @@ module.exports = class {
     });
   }
 
-  applyFamilyProtectPerDevice(macAddress, state, dnsaddrs){
-    
+  async applyFamilyProtectPerDevice(macAddress, state, dnsaddrs){
+    const configFile = `${devicemasqConfigFolder}/familyProtect_${macAddress}.conf`
+    const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}`
+    if (state == true) {
+      await fs.writeFile(file, content)
+      // dnsmasq.start(true)
+    } else {
+      await fs.unlink(configFile,err => {
+        if (err) {
+          if (err.code === 'ENOENT') {
+            log.info(`Dnsmasq: No ${devicemasqConfigFolder}, skip remove`);
+          } else {
+            log.warn(`Dnsmasq: Error when remove ${devicemasqConfigFolder}`, err);
+          }
+        }
+      })
+      // dnsmasq.start(true)
+    }
   }
   familyV2(ip, state, callback) {
     callback = callback || function () {
