@@ -247,7 +247,6 @@ module.exports = class {
 
   familyDnsAddr(callback) {
     firewalla.getBoneInfo((err, data) => {
-      log.info("data", data)
       if (data && data.config && data.config.dns && data.config.dns.familymode) {
         callback(null, data.config.dns.familymode);
       } else {
@@ -256,7 +255,7 @@ module.exports = class {
     });
   }
 
-  family(ip, state, callback) {
+  family(host, ip, state, callback) {
     const ver = features.getVersion('familyMode');
     switch (ver) {
       case 'v2':
@@ -264,11 +263,11 @@ module.exports = class {
         break;
       case 'v1':
       default:
-        this.familyV1(ip, state, callback);
+        this.familyV1(host, ip, state, callback);
     }
   }
 
-  familyV1(ip, state, callback) {
+  familyV1(host, ip, state, callback) {
     callback = callback || function () {
     }
 
@@ -288,7 +287,8 @@ module.exports = class {
         }
       }
     });
-
+    const macAddress = host && host.o && host.o.mac
+    log.inf("macAddress", macAddress)
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", ip, state, dnsaddrs.join(" "));
       if (state == true) {
@@ -694,7 +694,7 @@ module.exports = class {
         this.hblock(host, policy[p]);
         //    this.block(null,ip,null,null,policy[p]);
       } else if (p === "family") {
-        this.family(ip, policy[p], null);
+        this.family(host, ip, policy[p], null);
       } else if (p === "adblock") {
         this.adblock(ip, policy[p], null);
       } else if (p === "upstreamDns") {
