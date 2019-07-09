@@ -292,7 +292,7 @@ module.exports = class {
       log.info("Host macAddress", macAddress)
       log.info("PolicyManager:Family:IPTABLE", ip, state, dnsaddrs.join(" "));
       if (macAddress) {
-        this.applyFamilyProtectPerDevice(macAddress,)
+        this.applyFamilyProtectPerDevice(macAddress, state, dnsaddrs)
       } else {
         if (state == true) {
           dnsmasq.setDefaultNameServers("family", dnsaddrs);
@@ -305,7 +305,7 @@ module.exports = class {
     });
   }
 
-  applyFamilyProtectPerDevice(){
+  applyFamilyProtectPerDevice(macAddress, state, dnsaddrs){
     
   }
   familyV2(ip, state, callback) {
@@ -669,7 +669,6 @@ module.exports = class {
         callback(null, null);
       return;
     }
-    log.info("PolicyManager:Execute:", ip, policy);
     log.debug("PolicyManager:Execute:", ip, policy);
 
     for (let p in policy) {
