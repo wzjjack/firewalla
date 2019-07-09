@@ -271,14 +271,15 @@ module.exports = class {
   }
 
   familyV1(host, ip, state, callback) {
+    const systemFamilyProtectKey = "ext.familyProtect.state"
     callback = callback || function () {
     }
     log.info("======================ip===========================\n")
     log.info(ip)
     log.info("======================ip===========================\n")
-    if (ip !== "0.0.0.0") {
-      callback(null)
-      return
+    if (ip == "0.0.0.0") {
+      // save system family protect on or off
+      await rclient.setAsync(systemFamilyProtectKey, state)
     }
 
     // rm family_filter.conf from v2
@@ -293,28 +294,36 @@ module.exports = class {
       }
     });
     let macAddress = host && host.o && host.o.mac;
-    macAddress = macAddress ? macAddress : "84:89:AD:CA:58:7A"  
+    let systemFamilyProtectState = await rclient.getAsync(systemFamilyProtectKey)
+    log.info("======================systemFamilyProtectState===========================\n")
+    log.info(systemFamilyProtectState)
+    log.info("======================systemFamilyProtectState===========================\n")
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
-      if (macAddress) {
-        dnsmasq.unsetDefaultNameServers("family");
-        dnsmasq.updateResolvConf()
-        this.applyFamilyProtectPerDevice(macAddress, state, dnsaddrs)
-      } else {
-        if (state == true) {
+      if(macAddress == "84:89:AD:CA:58:7A")state=true //for test
+      if (ip == "0.0.0.0") {
+        if (systemFamilyProtectState == true) {
           dnsmasq.setDefaultNameServers("family", dnsaddrs);
           dnsmasq.updateResolvConf().then(() => callback());
         } else {
           dnsmasq.unsetDefaultNameServers("family"); // reset dns name servers to null no matter whether iptables dns change is failed or successful
           dnsmasq.updateResolvConf().then(() => callback());
         }
+      } else if(macAddress){
+        if (state) {
+          //if set particular device family protect on
+          //reset dns name servers to null then apply to device
+          dnsmasq.unsetDefaultNameServers("family");
+          dnsmasq.updateResolvConf()
+        }
+        this.applyFamilyProtectPerDevice(macAddress, state, dnsaddrs)
       }
     });
   }
 
   async applyFamilyProtectPerDevice(macAddress, state, dnsaddrs){
     const configFile = `${devicemasqConfigFolder}/familyProtect_${macAddress}.conf`
-    const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}`
+    const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}\n`
     if (state == true) {
       await fs.writeFile(configFile, dnsmasqentry)
       // dnsmasq.start(true)
