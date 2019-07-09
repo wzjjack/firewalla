@@ -314,7 +314,7 @@ module.exports = class {
     const configFile = `${devicemasqConfigFolder}/familyProtect_${macAddress}.conf`
     const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}`
     if (state == true) {
-      await fs.writeFile(file, content)
+      await fs.writeFile(configFile, content)
       // dnsmasq.start(true)
     } else {
       await fs.unlink(configFile,err => {
@@ -691,7 +691,7 @@ module.exports = class {
       return;
     }
     log.info("======================host===========================\n")
-    log.info(host)
+    log.info(host.o)
     log.info("======================host===========================\n")
     log.debug("PolicyManager:Execute:", ip, policy);
 
