@@ -291,6 +291,7 @@ module.exports = class {
       }
     });
     let macAddress = host && host.o && host.o.mac;
+    macAddress = macAddress ? macAddress : "84:89:AD:CA:58:7A"  
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
       if (macAddress) {
