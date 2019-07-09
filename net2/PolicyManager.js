@@ -270,7 +270,7 @@ module.exports = class {
     }
   }
 
-  familyV1(host, ip, state, callback) {
+  async familyV1(host, ip, state, callback) {
     const systemFamilyProtectKey = "ext.familyProtect.state"
     callback = callback || function () {
     }
