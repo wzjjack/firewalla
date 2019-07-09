@@ -273,7 +273,9 @@ module.exports = class {
   familyV1(host, ip, state, callback) {
     callback = callback || function () {
     }
-
+    log.info("======================ip===========================\n")
+    log.info(ip)
+    log.info("======================ip===========================\n")
     if (ip !== "0.0.0.0") {
       callback(null)
       return
@@ -314,7 +316,7 @@ module.exports = class {
     const configFile = `${devicemasqConfigFolder}/familyProtect_${macAddress}.conf`
     const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}`
     if (state == true) {
-      await fs.writeFile(configFile, content)
+      await fs.writeFile(configFile, dnsmasqentry)
       // dnsmasq.start(true)
     } else {
       await fs.unlink(configFile,err => {
@@ -697,7 +699,7 @@ module.exports = class {
 
     for (let p in policy) {
       log.info("======================policy===========================\n")
-      log.info(p)
+      log.info(policy.family)
       log.info("======================policy===========================\n")
       if (host.oper[p] != null && JSON.stringify(host.oper[p]) === JSON.stringify(policy[p])) {
         log.debug("PolicyManager:AlreadyApplied", p, host.oper[p]);
