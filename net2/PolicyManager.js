@@ -295,6 +295,8 @@ module.exports = class {
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
       if (macAddress) {
+        dnsmasq.unsetDefaultNameServers("family");
+        dnsmasq.updateResolvConf()
         this.applyFamilyProtectPerDevice(macAddress, state, dnsaddrs)
       } else {
         if (state == true) {
