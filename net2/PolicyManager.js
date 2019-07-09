@@ -690,6 +690,12 @@ module.exports = class {
         callback(null, null);
       return;
     }
+    log.info("======================host===========================\n")
+    log.info(host)
+    log.info("======================host===========================\n")
+    log.info("======================policy===========================\n")
+    log.info(policy)
+    og.info("======================policy===========================\n")
     log.debug("PolicyManager:Execute:", ip, policy);
 
     for (let p in policy) {
