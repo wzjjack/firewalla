@@ -695,7 +695,7 @@ module.exports = class {
     log.info("======================host===========================\n")
     log.info("======================policy===========================\n")
     log.info(policy)
-    og.info("======================policy===========================\n")
+    log.info("======================policy===========================\n")
     log.debug("PolicyManager:Execute:", ip, policy);
 
     for (let p in policy) {
