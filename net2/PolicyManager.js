@@ -256,6 +256,7 @@ module.exports = class {
   }
 
   family(host, ip, state, callback) {
+    log.info("jacktest",state)
     const ver = features.getVersion('familyMode');
     switch (ver) {
       case 'v2':
@@ -287,20 +288,27 @@ module.exports = class {
         }
       }
     });
-    const macAddress = host && host.o && host.o.mac
-    log.info("macAddress", macAddress)
+    let macAddress = host && host.o && host.o.mac;
     this.familyDnsAddr((err, dnsaddrs) => {
+      log.info("Host macAddress", macAddress)
       log.info("PolicyManager:Family:IPTABLE", ip, state, dnsaddrs.join(" "));
-      if (state == true) {
-        dnsmasq.setDefaultNameServers("family", dnsaddrs);
-        dnsmasq.updateResolvConf().then(() => callback());
+      if (macAddress) {
+        this.applyFamilyProtectPerDevice(macAddress,)
       } else {
-        dnsmasq.unsetDefaultNameServers("family"); // reset dns name servers to null no matter whether iptables dns change is failed or successful
-        dnsmasq.updateResolvConf().then(() => callback());
+        if (state == true) {
+          dnsmasq.setDefaultNameServers("family", dnsaddrs);
+          dnsmasq.updateResolvConf().then(() => callback());
+        } else {
+          dnsmasq.unsetDefaultNameServers("family"); // reset dns name servers to null no matter whether iptables dns change is failed or successful
+          dnsmasq.updateResolvConf().then(() => callback());
+        }
       }
     });
   }
 
+  applyFamilyProtectPerDevice(){
+
+  }
   familyV2(ip, state, callback) {
     callback = callback || function () {
     }
