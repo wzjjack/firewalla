@@ -288,7 +288,7 @@ module.exports = class {
       }
     });
     const macAddress = host && host.o && host.o.mac
-    log.inf("macAddress", macAddress)
+    log.info("macAddress", macAddress)
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", ip, state, dnsaddrs.join(" "));
       if (state == true) {
