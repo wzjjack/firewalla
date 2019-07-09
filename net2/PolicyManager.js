@@ -322,6 +322,8 @@ module.exports = class {
   }
 
   async applyFamilyProtectPerDevice(macAddress, state, dnsaddrs){
+    log.info("======================applyFamilyProtectPerDevice===========================\n")
+    log.info(macAddress, state, dnsaddrs)
     const configFile = `${devicemasqConfigFolder}/familyProtect_${macAddress}.conf`
     const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}\n`
     if (state == true) {
