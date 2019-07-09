@@ -693,14 +693,14 @@ module.exports = class {
       return;
     }
     log.info("======================host===========================\n")
-    log.info(host.o)
+    log.info(host.o, ip)
     log.info("======================host===========================\n")
+    log.info("======================policy===========================\n")
+    log.info(policy.family, policy.vpnClient)
+    log.info("======================policy===========================\n")
     log.debug("PolicyManager:Execute:", ip, policy);
 
     for (let p in policy) {
-      log.info("======================policy===========================\n")
-      log.info(policy.family)
-      log.info("======================policy===========================\n")
       if (host.oper[p] != null && JSON.stringify(host.oper[p]) === JSON.stringify(policy[p])) {
         log.debug("PolicyManager:AlreadyApplied", p, host.oper[p]);
         if (p === "monitor") {
