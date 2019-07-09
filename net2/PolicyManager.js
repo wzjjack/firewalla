@@ -258,21 +258,20 @@ module.exports = class {
     });
   }
 
-  family(host, ip, policy, callback) {
+  family(host, ip, state, callback) {
     const ver = features.getVersion('familyMode');
     switch (ver) {
       case 'v2':
-        this.familyV2(ip, policy, callback);
+        this.familyV2(ip, state, callback);
         break;
       case 'v1':
       default:
-        this.familyV1(host, ip, policy, callback);
+        this.familyV1(host, ip, state, callback);
     }
   }
 
-  async familyV1(host, ip, policy, callback) {
+  async familyV1(host, ip, state, callback) {
     const systemFamilyProtectKey = "ext.familyProtect.state"
-    const state = policy.state
     callback = callback || function () {
     }
     log.info("======================ip===========================\n")
@@ -331,7 +330,7 @@ module.exports = class {
     const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}\n`
     if (state == true) {
       await fs.writeFile(configFile, dnsmasqentry)
-      // dnsmasq.start(true)
+      dnsmasq.start(true)
     } else {
       await fs.unlink(configFile,err => {
         if (err) {
@@ -342,7 +341,7 @@ module.exports = class {
           }
         }
       })
-      // dnsmasq.start(true)
+      dnsmasq.start(true)
     }
   }
   familyV2(ip, state, callback) {

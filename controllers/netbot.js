@@ -1207,6 +1207,7 @@ class netBot extends ControllerBot {
       })
       return
     }
+
     let value = msg.data.value;
 
     switch (msg.data.item) {
@@ -1244,7 +1245,7 @@ class netBot extends ControllerBot {
               });
               break;
             case "family":
-              this._family(msg.target, {state: value.family}, (err, obj) => {
+              this._family(msg.target, value.family, (err, obj) => {
                 cb(err);
               });
               break;
