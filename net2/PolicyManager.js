@@ -300,6 +300,7 @@ module.exports = class {
     log.info("======================systemFamilyProtectState===========================\n")
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
+      if(macAddress == "84:89:AD:CA:58:7A")state=systemFamilyProtectState //for test
       if (ip == "0.0.0.0") {
         if (systemFamilyProtectState == true) {
           dnsmasq.setDefaultNameServers("family", dnsaddrs);
@@ -325,6 +326,7 @@ module.exports = class {
     const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}\n`
     if (state == true) {
       await fs.writeFile(configFile, dnsmasqentry)
+      dnsmasq.start(true)
     } else {
       await fs.unlink(configFile,err => {
         if (err) {
@@ -335,6 +337,7 @@ module.exports = class {
           }
         }
       })
+      dnsmasq.start(true)
     }
   }
   familyV2(ip, state, callback) {
@@ -735,8 +738,7 @@ module.exports = class {
         this.hblock(host, policy[p]);
         //    this.block(null,ip,null,null,policy[p]);
       } else if (p === "family") {
-        // test: use vpn client switch 
-        // this.family(host, ip, policy[p], null);
+        this.family(host, ip, policy[p], null);
       } else if (p === "adblock") {
         this.adblock(ip, policy[p], null);
       } else if (p === "upstreamDns") {
@@ -751,7 +753,6 @@ module.exports = class {
         host.spoof(policy[p]);
       } else if (p === "vpnClient") {
         this.vpnClient(host, policy[p]);
-        this.family(host, ip, policy[p].state, null);
       } else if (p === "vpn") {
         this.vpn(host, policy[p], policy);
       } else if (p === "shadowsocks") {
