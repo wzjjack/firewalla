@@ -754,7 +754,7 @@ module.exports = class {
       } else if (p === "monitor") {
         host.spoof(policy[p]);
       } else if (p === "vpnClient") {
-        this.family(host, ip, policy.family, null);        
+        this.family(host, ip, policy[p].state, null);        
         this.vpnClient(host, policy[p]);
       } else if (p === "vpn") {
         this.vpn(host, policy[p], policy);
