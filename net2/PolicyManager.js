@@ -256,7 +256,6 @@ module.exports = class {
   }
 
   family(host, ip, state, callback) {
-    log.info("jacktest",state)
     const ver = features.getVersion('familyMode');
     switch (ver) {
       case 'v2':
@@ -307,7 +306,7 @@ module.exports = class {
   }
 
   applyFamilyProtectPerDevice(){
-
+    
   }
   familyV2(ip, state, callback) {
     callback = callback || function () {
@@ -670,7 +669,7 @@ module.exports = class {
         callback(null, null);
       return;
     }
-
+    log.info("PolicyManager:Execute:", ip, policy);
     log.debug("PolicyManager:Execute:", ip, policy);
 
     for (let p in policy) {
