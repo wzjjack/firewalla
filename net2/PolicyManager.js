@@ -43,7 +43,7 @@ const dnsmasq = new DNSMASQ();
 const firewalla = require('../net2/Firewalla.js');
 
 const userConfigFolder = firewalla.getUserConfigFolder();
-const devicemasqConfigFolder = `${userConfigFolder}/devicemasq`;
+const dnsmasqConfigFolder = `${userConfigFolder}/dns`;
 
 let externalAccessFlag = false;
 
@@ -271,15 +271,7 @@ module.exports = class {
   }
 
   async familyV1(host, ip, state, callback) {
-    const systemFamilyProtectKey = "ext.familyProtect.state"
     callback = callback || function () {
-    }
-    log.info("======================ip===========================\n")
-    log.info(ip)
-    log.info("======================ip===========================\n")
-    if (ip == "0.0.0.0") {
-      // save system family protect on or off
-      await rclient.setAsync(systemFamilyProtectKey, state)
     }
 
     // rm family_filter.conf from v2
@@ -294,15 +286,11 @@ module.exports = class {
       }
     });
     let macAddress = host && host.o && host.o.mac;
-    let systemFamilyProtectState = await rclient.getAsync(systemFamilyProtectKey)
-    log.info("======================systemFamilyProtectState===========================\n")
-    log.info(systemFamilyProtectState)
-    log.info("======================systemFamilyProtectState===========================\n")
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
       // F4:0F:24:37:4F:FC mac pro
       // 84:89:AD:CA:58:7A iphone6s
-      if(macAddress == "84:89:AD:CA:58:7A")state=systemFamilyProtectState
+      // if(macAddress == "84:89:AD:CA:58:7A")state=systemFamilyProtectState
       if (ip == "0.0.0.0") {
         if (systemFamilyProtectState == true) {
           dnsmasq.setDefaultNameServers("family", dnsaddrs);
@@ -312,12 +300,6 @@ module.exports = class {
           dnsmasq.updateResolvConf().then(() => callback());
         }
       } else if(macAddress){
-        if (state) {
-          //if set particular device family protect on
-          //reset dns name servers to null then apply to device
-          dnsmasq.unsetDefaultNameServers("family");
-          dnsmasq.updateResolvConf()
-        }
         this.applyFamilyProtectPerDevice(macAddress, state, dnsaddrs)
       }
     });
@@ -326,7 +308,7 @@ module.exports = class {
   async applyFamilyProtectPerDevice(macAddress, state, dnsaddrs){
     log.info("======================applyFamilyProtectPerDevice===========================\n")
     log.info(macAddress, state, dnsaddrs)
-    const configFile = `${devicemasqConfigFolder}/familyProtect_${macAddress}.conf`
+    const configFile = `${dnsmasqConfigFolder}/familyProtect_${macAddress}.conf`
     const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}\n`
     if (state == true) {
       await fs.writeFile(configFile, dnsmasqentry)
@@ -742,7 +724,7 @@ module.exports = class {
         this.hblock(host, policy[p]);
         //    this.block(null,ip,null,null,policy[p]);
       } else if (p === "family") {
-        this.family(host, ip, policy[p], null);
+        // this.family(host, ip, policy[p], null);
       } else if (p === "adblock") {
         this.adblock(ip, policy[p], null);
       } else if (p === "upstreamDns") {
@@ -756,6 +738,8 @@ module.exports = class {
       } else if (p === "monitor") {
         host.spoof(policy[p]);
       } else if (p === "vpnClient") {
+        // use vpnClient to test
+        this.family(host, ip, policy[p].state, null);
         this.vpnClient(host, policy[p]);
       } else if (p === "vpn") {
         this.vpn(host, policy[p], policy);
