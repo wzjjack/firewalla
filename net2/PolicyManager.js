@@ -288,9 +288,6 @@ module.exports = class {
     let macAddress = host && host.o && host.o.mac;
     this.familyDnsAddr((err, dnsaddrs) => {
       log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
-      // F4:0F:24:37:4F:FC mac pro
-      // 84:89:AD:CA:58:7A iphone6s
-      // if(macAddress == "84:89:AD:CA:58:7A")
       if (ip == "0.0.0.0") {
         if (state == true) {
           dnsmasq.setDefaultNameServers("family", dnsaddrs);
@@ -686,12 +683,6 @@ module.exports = class {
         callback(null, null);
       return;
     }
-    log.info("======================host===========================\n")
-    log.info(host.o, ip)
-    log.info("======================host===========================\n")
-    log.info("======================policy===========================\n")
-    log.info(policy.family, policy.vpnClient)
-    log.info("======================policy===========================\n")
     log.debug("PolicyManager:Execute:", ip, policy);
 
     for (let p in policy) {
