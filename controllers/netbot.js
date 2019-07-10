@@ -3067,7 +3067,7 @@ class netBot extends ControllerBot {
         break;
       }        
       case "enableFeature": {
-        const featureName = value.featureName
+        const featureName = value.featureName;
         (async() =>{
           if(featureName) {
             await fc.enableDynamicFeature(featureName)
@@ -3081,7 +3081,7 @@ class netBot extends ControllerBot {
         break
       }      
       case "disableFeature": {
-        const featureName = value.featureName
+        const featureName = value.featureName;
         (async() =>{
           if(featureName) {
             await fc.disableDynamicFeature(featureName)
@@ -3095,7 +3095,7 @@ class netBot extends ControllerBot {
         break
       }      
       case "clearFeatureDynamicFlag": {
-        const featureName = value.featureName
+        const featureName = value.featureName;
         (async() =>{
           if(featureName) {
             await fc.clearDynamicFeature(featureName)
