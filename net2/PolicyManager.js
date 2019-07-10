@@ -312,7 +312,6 @@ module.exports = class {
     const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}\n`
     if (state == true) {
       await fs.writeFile(configFile, dnsmasqentry)
-      dnsmasq.start(true)
     } else {
       await fs.unlink(configFile,err => {
         if (err) {
@@ -323,8 +322,8 @@ module.exports = class {
           }
         }
       })
-      dnsmasq.start(true)
     }
+    dnsmasq.start(true)
   }
   familyV2(ip, state, callback) {
     callback = callback || function () {
