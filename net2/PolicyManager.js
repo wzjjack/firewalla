@@ -313,9 +313,9 @@ module.exports = class {
       await fs.unlink(configFile,err => {
         if (err) {
           if (err.code === 'ENOENT') {
-            log.info(`Dnsmasq: No ${devicemasqConfigFolder}, skip remove`);
+            log.info(`Dnsmasq: No ${configFile}, skip remove`);
           } else {
-            log.warn(`Dnsmasq: Error when remove ${devicemasqConfigFolder}`, err);
+            log.warn(`Dnsmasq: Error when remove ${configFile}`, err);
           }
         }
       })
