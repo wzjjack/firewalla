@@ -290,9 +290,9 @@ module.exports = class {
       log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
       // F4:0F:24:37:4F:FC mac pro
       // 84:89:AD:CA:58:7A iphone6s
-      // if(macAddress == "84:89:AD:CA:58:7A")state=systemFamilyProtectState
+      // if(macAddress == "84:89:AD:CA:58:7A")
       if (ip == "0.0.0.0") {
-        if (systemFamilyProtectState == true) {
+        if (state == true) {
           dnsmasq.setDefaultNameServers("family", dnsaddrs);
           dnsmasq.updateResolvConf().then(() => callback());
         } else {
