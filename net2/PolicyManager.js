@@ -287,7 +287,7 @@ module.exports = class {
     });
     let macAddress = host && host.o && host.o.mac;
     this.familyDnsAddr((err, dnsaddrs) => {
-      log.info("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
+      log.debug("PolicyManager:Family:IPTABLE", macAddress, ip, state, dnsaddrs.join(" "));
       if (ip == "0.0.0.0") {
         if (state == true) {
           dnsmasq.setDefaultNameServers("family", dnsaddrs);
@@ -303,8 +303,8 @@ module.exports = class {
   }
 
   async applyFamilyProtectPerDevice(macAddress, state, dnsaddrs){
-    log.info("======================applyFamilyProtectPerDevice===========================\n")
-    log.info(macAddress, state, dnsaddrs)
+    log.debug("======================applyFamilyProtectPerDevice===========================\n")
+    log.debug(macAddress, state, dnsaddrs)
     const configFile = `${dnsmasqConfigFolder}/familyProtect_${macAddress}.conf`
     const dnsmasqentry = `server=${dnsaddrs[0]}%${macAddress.toUpperCase()}\n`
     if (state == true) {
@@ -714,7 +714,7 @@ module.exports = class {
         this.hblock(host, policy[p]);
         //    this.block(null,ip,null,null,policy[p]);
       } else if (p === "family") {
-        // this.family(host, ip, policy[p], null);
+        this.family(host, ip, policy[p], null);
       } else if (p === "adblock") {
         this.adblock(ip, policy[p], null);
       } else if (p === "upstreamDns") {
@@ -728,8 +728,6 @@ module.exports = class {
       } else if (p === "monitor") {
         host.spoof(policy[p]);
       } else if (p === "vpnClient") {
-        // use vpnClient to test
-        this.family(host, ip, policy[p].state, null);
         this.vpnClient(host, policy[p]);
       } else if (p === "vpn") {
         this.vpn(host, policy[p], policy);
