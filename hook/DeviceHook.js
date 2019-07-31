@@ -36,6 +36,9 @@ const fc = require('../net2/config.js')
 const Samba = require('../extension/samba/samba.js');
 const samba = new Samba();
 
+const DNSMASQ = require('../extension/dnsmasq/dnsmasq.js');
+const dnsmasq = new DNSMASQ();
+
 const HostManager = require('../net2/HostManager.js');
 
 const SysManager = require('../net2/SysManager.js');
@@ -193,6 +196,7 @@ class DeviceHook extends Hook {
             .catch(log.error)
         }
       }
+      dnsmasq.setupLocalDomainConf(true);
     });
 
     sem.on("NewDeviceFound", (event) => {
@@ -276,7 +280,7 @@ class DeviceHook extends Hook {
             host.spoof(true);
           }
         });
-      })().catch((err) => {
+      })().then(() => dnsmasq.setupLocalDomainConf(true)).catch((err) => {
         log.error("Failed to handle NewDeviceFound event:", err);
       });
     });
@@ -337,7 +341,7 @@ class DeviceHook extends Hook {
         log.info(`Reload host info for new ip address ${host.ipv4Addr}`)
         let hostManager = new HostManager("cli", 'server', 'info')
         hostManager.getHost(host.ipv4Addr);
-      })().catch((err) => {
+      })().then(() => dnsmasq.setupLocalDomainConf(true)).catch((err) => {
         log.error("Failed to process OldDeviceChangedToNewIP event:", err);
       })
     });
@@ -409,7 +413,7 @@ class DeviceHook extends Hook {
         log.info(`Reload host info for new ip address ${host.ipv4Addr}`);
         let hostManager = new HostManager("cli", 'server', 'info');
         hostManager.getHost(host.ipv4Addr);
-      })().catch((err) => {
+      })().then(() => dnsmasq.setupLocalDomainConf(true)).catch((err) => {
         log.error("Failed to process OldDeviceTakenOverOtherDeviceIP event:", err);
       })
     });
@@ -484,7 +488,7 @@ class DeviceHook extends Hook {
         //     })
 
         // })
-      })().catch((err) => {
+      })().then(() => dnsmasq.setupLocalDomainConf(true)).catch((err) => {
         log.error("Failed to create host entry:", err, err.stack);
       });
 

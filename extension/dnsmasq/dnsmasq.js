@@ -20,6 +20,8 @@ const redis = require('../../util/redis_manager.js').getRedisClient();
 const fs = Promise.promisifyAll(require("fs"));
 const validator = require('validator');
 const Mode = require('../../net2/Mode.js');
+const HostTool = require('../../net2/HostTool.js');
+const hostTool = new HostTool();
 
 const FILTER_DIR = f.getUserConfigFolder() + "/dns";
 
@@ -32,6 +34,8 @@ const FILTER_FILE = {
 
   policy: FILTER_DIR + "/policy_filter.conf"
 }
+
+const LOCAL_DOMAIN_FILE = FILTER_DIR + "/local_domain.conf"
 
 const policyFilterFile = FILTER_DIR + "/policy_filter.conf";
 const familyFilterFile = FILTER_DIR + "/family_filter.conf";
@@ -1151,7 +1155,6 @@ module.exports = class DNSMASQ {
     log.info("Starting DNSMASQ...");
 
     this.shouldStart = false
-
     await this.updateResolvConf();
     // no need to stop dnsmasq, this.rawStart() will restart dnsmasq. Otherwise, there is a cooldown before restart, causing dns outage during that cool down window.
     // await this.rawStop(); 
@@ -1310,6 +1313,21 @@ module.exports = class DNSMASQ {
       await Promise.all(cleanupPromises)
     } catch (err) {
       log.info("clean up leftover config", err)
+    }
+  }
+  async setupLocalDomainConf(restart) {
+    const hosts = await hostTool.getAllIPs();
+    log.info("laaaaaaa", hosts)
+    let localDomainServer;
+    for (const host of hosts) {
+      const ips = host.ips;
+      for (const ip of ips) {
+        localDomainServer += `server=/.local/${ip}\n`
+      }
+    }
+    await fs.writeFileAsync(LOCAL_DOMAIN_FILE, localDomainServer);
+    if (restart) {
+      this.restartDnsmasq();
     }
   }
 };

@@ -1,3 +1,5 @@
+import { dnsChange } from '../net2/Iptables';
+
 /*    Copyright 2016 Firewalla LLC
  *
  *    This program is free software: you can redistribute it and/or  modify
@@ -40,7 +42,10 @@ class DNSMASQSensor extends Sensor {
         log.error("Fail to install dnsmasq: " + err);
         throw err;
       })
-      .then(() => dnsmasq.start(false))
+      .then(() => {
+        dnsmasq.setupLocalDomainConf(false)
+        dnsmasq.start(false)
+      })
       .catch(err => log.error("Failed to start dnsmasq: " + err))
       .then(() => log.info("dnsmasq service is started successfully"));
   }
