@@ -1329,7 +1329,7 @@ module.exports = class DNSMASQ {
   async setupLocalDomainConf(restart) {
     const hosts = await hostTool.getAllIPs();
     log.info("laaaaaaa", hosts)
-    let localDomainServer;
+    let localDomainServer = "";
     for (const host of hosts) {
       const ips = host.ips;
       for (const ip of ips) {
