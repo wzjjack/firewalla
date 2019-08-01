@@ -23,7 +23,8 @@ const Mode = require('../../net2/Mode.js');
 const HostTool = require('../../net2/HostTool.js');
 const hostTool = new HostTool();
 
-const FILTER_DIR = f.getUserConfigFolder() + "/dns";
+const FILTER_DIR = f.getUserConfigFolder() + "/dnsmasq";
+const LEGACY_FILTER_DIR = f.getUserConfigFolder() + "/dns";
 
 const FILTER_FILE = {
   adblock: FILTER_DIR + "/adblock_filter.conf",
@@ -38,7 +39,6 @@ const FILTER_FILE = {
 const LOCAL_DOMAIN_FILE = FILTER_DIR + "/local_domain.conf"
 
 const policyFilterFile = FILTER_DIR + "/policy_filter.conf";
-const familyFilterFile = FILTER_DIR + "/family_filter.conf";
 
 const pclient = require('../../util/redis_manager.js').getPublishClient();
 const sclient = require('../../util/redis_manager.js').getSubscriptionClient();
@@ -1296,23 +1296,34 @@ module.exports = class DNSMASQ {
 
   async cleanUpLeftoverConfig() {
     try {
-      const userConfigFolder = f.getUserConfigFolder(),
-        dnsConfigFolder = `${userConfigFolder}/dns`,
-        devicemasqConfigFolder = `${userConfigFolder}/devicemasq`
-      const configFolders = [dnsConfigFolder, devicemasqConfigFolder]
-      const cleanupPromises = configFolders.map(configFolder => {
-        (async () => {
-          const files = await fs.readdirAsync(configFolder)
-          files.map(filename => {
-            if (filename.indexOf('safeSearch') > -1) {
-              fs.unlinkAsync(`${configFolder}/${filename}`)
+      await fs.mkdirAsync(FILTER_DIR, {recursive: true, mode: 0o755}).catch((err) => {
+        if (err.code !== "EEXIST")
+          log.error(`Failed to create ${FILTER_DIR}`, err);
+      });
+      const dirs = [FILTER_DIR, LEGACY_FILTER_DIR];
+      for (let dir of dirs) {
+        const dirExists = await fs.accessAsync(dir, fs.constants.F_OK).then(() => true).catch(() => false);
+        if (!dirExists)
+          continue;
+        
+        const files = await fs.readdirAsync(dir);
+        await Promise.all(files.map(async (filename) => {
+          const filePath = `${dir}/${filename}`;
+          
+          try {
+            const fileStat = await fs.statAsync(filePath);
+            if (fileStat.isFile()) {
+              await fs.unlinkAsync(filePath).catch((err) => {
+                log.error(`Failed to remove ${filePath}, err:`, err);
+              });
             }
-          });
-        })()
-      })
-      await Promise.all(cleanupPromises)
+          } catch(err) {
+            log.info(`File ${filePath} not exist`);
+          }
+        }));
+      }
     } catch (err) {
-      log.info("clean up leftover config", err)
+      log.error("Failed to clean up leftover config", err);
     }
   }
   async setupLocalDomainConf(restart) {
