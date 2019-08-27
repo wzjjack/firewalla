@@ -6,8 +6,7 @@ After=network.target
 User=pi
 Restart=always
 WorkingDirectory=/home/pi/firewalla/extension/frp
-ExecStart=FRPC_COMMAND -c FRPC_CONF
-
+ExecStart=/bin/sh -c 'FRPC_COMMAND -c FRPC_CONF 2>&1 >> /home/pi/.forever/SERVICE_NAME'
 [Install]
 WantedBy=multi-user.target
 

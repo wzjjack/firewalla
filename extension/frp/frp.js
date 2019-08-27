@@ -70,8 +70,8 @@ function getLastServiceLogTime(serviceName) {
 
 function getLastSystemLogTime(serviceName) {
   let str = execSync(
-    `sudo grep ${serviceName} /var/log/syslog | tail -n 1`
-  ).toString('utf8').substring(0, 15);
+    `sudo stat -c %Y ${serviceName}`
+  ).toString('utf8');
 
   try {
     return new Date(str)
@@ -319,6 +319,7 @@ module.exports = class {
     let templateData = await readFile(serviceTemplateFile, 'utf8');
     templateData = templateData.replace(/FRPC_COMMAND/g, frpCmd);
     templateData = templateData.replace(/FRPC_CONF/g, configFilePath);
+    templateData = templateData.replace(/SERVICE_NAME/g, serviceName);
     await writeFile(serviceFilePath, templateData, 'utf8');
 
     spawnSync('sudo', ['cp', serviceFilePath, '/etc/systemd/system/']);
