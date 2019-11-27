@@ -71,7 +71,7 @@ class DataUsageSensor extends Sensor {
             downloadStats.forEach((item, index) => {
                 totalUsage = totalUsage * 1 + item[1] * 1 + uploadStats[index][1] * 1;
             })
-            if (totalUsage < this.minsize_download) return;
+            if (totalUsage < this.minsize_download) continue;
             for (let i = slots; i < downloadStats.length; i++) {
                 let temp = 0;
                 for (let j = i - slots; j < i; j++) {
@@ -81,9 +81,8 @@ class DataUsageSensor extends Sensor {
                 dataUsageRatio.push(temp);
             }
             if (dataUsageRatio.length > 0) {
-                log.info("dataUsage", dataUsageRatio)
                 const dataStddev = stats.stdev(dataUsageRatio);
-                log.info("dataStddev", dataStddev, this.stddev_limit)
+                log.info("dataStddev", dataStddev, host.o.mac);
                 if (dataStddev > this.stddev_limit &&
                     dataUsageRatio[dataUsageRatio.length - 1] > dataUsageRatio[dataUsageRatio.length - 2]) {
                     this.genAbnormalDownloadAlarm(host, downloadStats[0][0], downloadStats[downloadStats.length - 1][0], totalUsage, downloadStats, uploadStats);
