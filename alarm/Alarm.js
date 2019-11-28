@@ -620,6 +620,9 @@ class OverDataPlanUsageAlarm extends Alarm{
   getExpirationTime() {
     return fc.getTimingConfig("alarm.alarm.data_plan.cooldown.cooldown") || 60 * 60 * 4
   }
+  requiredKeys(){
+    return [];
+  }
 }
 
 class LargeTransferAlarm extends OutboundAlarm {

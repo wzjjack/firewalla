@@ -338,7 +338,6 @@ module.exports = class HostManager {
       monthlyBeginTs = new Date(year, month, 1);
       monthlyEndTs = new Date(year, month + 1, 1);
     }
-    log.info("monthlyDataStats days", days)
     const downloadKey = `download${mac ? ':' + mac : ''}`;
     const uploadKey = `upload${mac ? ':' + mac : ''}`;
     const downloadStats = await getHitsAsync(downloadKey, '1day', days) || [];

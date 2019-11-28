@@ -180,15 +180,14 @@ class DataUsageSensor extends Sensor {
     }
     async checkMonthlyDataUsage() {
         log.info("Start check monthly data usage")
-        let dataPlan = await rclient.get('sys:data:plan');
+        let dataPlan = await rclient.getAsync('sys:data:plan');
         if (!dataPlan) return;
-        dataPlan = JSON.parse(dataPlan)
+        dataPlan = JSON.parse(dataPlan);
         const { date, total } = dataPlan;
         const { totalDownload, totalUpload, monthlyBeginTs, monthlyEndTs } = await hostManager.monthlyDataStats(null, date);
-        log.info("compare with data plan", totalDownload, totalUpload, totalDownload + totalUpload, total, monthlyEndTs)
         if (totalDownload + totalUpload > total) {
             //gen over data plan alarm
-            let alarm = new Alarm.OverDataPlanUsageAlarm(new Date() / 1000, name, {
+            let alarm = new Alarm.OverDataPlanUsageAlarm(new Date() / 1000, null, {
                 "p.monthly.endts": monthlyEndTs,
                 "p.percentage": ((totalDownload + totalUpload) / total * 100).toFixed(2) + '%',
                 "p.totalUsage": totalDownload + totalUpload,
