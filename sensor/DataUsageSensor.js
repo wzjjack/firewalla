@@ -41,6 +41,8 @@ class DataUsageSensor extends Sensor {
         this.percentage = this.config.percentage || 0.8;
         this.topXflows = this.config.topXflows || 2;
         this.minsize = this.config.minsize || 100 * 1000 * 1000;
+        this.smWindow = this.config.smWindow || 2;
+        this.mdWindow = this.config.mdWindow || 8;
         this.hookFeature(featureName);
     }
     job() {
@@ -56,25 +58,20 @@ class DataUsageSensor extends Sensor {
         log.info("Start check data usage")
         let hosts = await hostManager.getHostsAsync();
         const systemDataUsage = await this.getTimewindowDataUsage(0, '');
-        const systemTotalUsage = systemDataUsage.reduce((total, item) => { return total.count * 1 + item.count * 1 })
+        const systemTotalUsage = systemDataUsage.reduce((total, item) => { return { count: total.count * 1 + item.count * 1 } }).count
         hosts = hosts.filter(x => x)
         for (const host of hosts) {
             const mac = host.o.mac;
             const dataUsage = await this.getTimewindowDataUsage(0, mac);
-            const dataUsage2HourWindow = await this.getTimewindowDataUsage(2, mac);
-            const dataUsage8HourWindow = await this.getTimewindowDataUsage(8, mac);
-            const hostTotalUsage = dataUsage.reduce((total, item) => { return total.count * 1 + item.count * 1 })
+            const dataUsageSmHourWindow = await this.getTimewindowDataUsage(this.smWindow, mac);
+            const dataUsageMdHourWindow = await this.getTimewindowDataUsage(this.mdWindow, mac);
+            const hostTotalUsage = dataUsage.reduce((total, item) => { return { count: total.count * 1 + item.count * 1 } }).count
             const hostDataUsagePercentage = hostTotalUsage / systemTotalUsage;
-            log.info(mac)
-            log.info("total Usage percentage", hostTotalUsage, systemTotalUsage, hostDataUsagePercentage)
-            log.info("originDataUsage", dataUsage)
-            log.info("dataUsage2HourWindow", dataUsage2HourWindow)
-            log.info("dataUsage8HourWindow", dataUsage8HourWindow)
             const begin = dataUsage[0].ts, end = dataUsage[dataUsage.length - 1].ts;
-            for (let i = 0; i < dataUsage2HourWindow.length; i++) {
-                if (dataUsage2HourWindow[i] > this.minsize && dataUsage8HourWindow[i] > this.minsize) {
-                    const ratio = dataUsage2HourWindow[i] / dataUsage8HourWindow[i];
-                    log.info("ratio", ratio, this.ratio)
+            for (let i = 0; i < dataUsageSmHourWindow.length; i++) {
+                if (dataUsageSmHourWindow[i].count > this.minsize && dataUsageMdHourWindow[i].count > this.minsize) {
+                    const ratio = dataUsageSmHourWindow[i].count / dataUsageMdHourWindow[i].count;
+                    log.debug("ratio", ratio, this.ratio)
                     if (ratio > this.ratio && hostDataUsagePercentage > this.percentage) {
                         this.genAbnormalBandwidthUsageAlarm(host, begin, end, hostTotalUsage, dataUsage);
                         break;
@@ -109,7 +106,7 @@ class DataUsageSensor extends Sensor {
         return dataUsageTimeWindow
     }
     async genAbnormalBandwidthUsageAlarm(host, begin, end, totalUsage, dataUsage) {
-        log.info("genAbnormalBandwidthUsageAlarm", host.o, begin, end)
+        log.info("genAbnormalBandwidthUsageAlarm", host.o.mac, begin, end)
         //get top flows from begin to end
         const mac = host.o.mac;
         const name = host.o.name || host.o.bname;

@@ -772,7 +772,7 @@ let classMapping = {
   ALARM_VIDEO: VideoAlarm.prototype,
   ALARM_GAME: GameAlarm.prototype,
   ALARM_LARGE_UPLOAD: LargeTransferAlarm.prototype,
-  AbnormalBandwidthUsageAlarm: AbnormalBandwidthUsageAlarm.prototype,
+  ALARM_ABNORMAL_BANDWIDTH_USAGE: AbnormalBandwidthUsageAlarm.prototype,
   ALARM_NEW_DEVICE: NewDeviceAlarm.prototype,
   ALARM_DEVICE_BACK_ONLINE: DeviceBackOnlineAlarm.prototype,
   ALARM_DEVICE_OFFLINE: DeviceOfflineAlarm.prototype,

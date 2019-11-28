@@ -500,8 +500,10 @@
     "DataUsageSensor": {
       "refreshInterval": 15,
       "ratio": 2,
-      "percentage": 0.8,
+      "percentage": 0.7,
       "analytics_hours": 8,
+      "smWindow": 2,
+      "mdWindow": 8,
       "topXflows": 2,
       "minsize": 100000000
     }
