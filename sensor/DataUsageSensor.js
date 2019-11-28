@@ -21,7 +21,6 @@ const HostManager = require("../net2/HostManager.js");
 const hostManager = new HostManager("cli", 'client', 'info');
 const util = require('util');
 const getHitsAsync = util.promisify(timeSeries.getHits).bind(timeSeries);
-const stats = require('stats-lite');
 const FlowAggrTool = require('../net2/FlowAggrTool');
 const flowAggrTool = new FlowAggrTool();
 const FlowTool = require('../net2/FlowTool');
@@ -29,7 +28,7 @@ const flowTool = new FlowTool();
 const Alarm = require('../alarm/Alarm.js');
 const AlarmManager2 = require('../alarm/AlarmManager2.js');
 const alarmManager2 = new AlarmManager2();
-const featureName = 'large_download';
+const featureName = 'abnormal_bandwidth_usage';
 class DataUsageSensor extends Sensor {
     constructor() {
         super();
@@ -37,11 +36,11 @@ class DataUsageSensor extends Sensor {
     run() {
         //todo add policy for per device data usage monitor or system
         this.refreshInterval = (this.config.refreshInterval || 15) * 60 * 1000;
-        this.timewindow = this.config.timewindow || 2;
-        this.stddev_limit = this.config.stddev_limit || 0.2;
-        this.analytics_hours = this.config.analytics_hours || 24;
+        this.ratio = this.config.ratio || 2;
+        this.analytics_hours = this.config.analytics_hours || 8;
+        this.percentage = this.config.percentage || 0.8;
         this.topXflows = this.config.topXflows || 2;
-        this.minsize_download = this.config.minsize_download || 500 * 1000 * 1000;
+        this.minsize = this.config.minsize || 100 * 1000 * 1000;
         this.hookFeature(featureName);
     }
     job() {
@@ -56,57 +55,75 @@ class DataUsageSensor extends Sensor {
     async checkDataUsage() {
         log.info("Start check data usage")
         let hosts = await hostManager.getHostsAsync();
+        const systemDataUsage = await this.getTimewindowDataUsage(0, '');
+        const systemTotalUsage = systemDataUsage.reduce((total, item) => { return total.count * 1 + item.count * 1 })
         hosts = hosts.filter(x => x)
         for (const host of hosts) {
             const mac = host.o.mac;
-            const downloadKey = `download${mac ? ':' + mac : ''}`;
-            const uploadKey = `upload${mac ? ':' + mac : ''}`;
-            //[[ts,Bytes]]  [[1574325720, 9396810],[ 1574325780, 3141018 ]]
-            const slot = 4;// 1hour 4 slots
-            const slots = slot * this.timewindow;
-            const downloadStats = await getHitsAsync(downloadKey, "15minutes", slot * this.analytics_hours);//get passed 24 hours dowload stats
-            const uploadStats = await getHitsAsync(uploadKey, "15minutes", slot * this.analytics_hours);
-            let dataUsageRatio = [], totalUsage = 0;
-            if (downloadStats.length < slots) return;
-            downloadStats.forEach((item, index) => {
-                totalUsage = totalUsage * 1 + item[1] * 1 + uploadStats[index][1] * 1;
-            })
-            if (totalUsage < this.minsize_download) continue;
-            for (let i = slots; i < downloadStats.length; i++) {
-                let temp = 0;
-                for (let j = i - slots; j < i; j++) {
-                    temp = temp * 1 + downloadStats[j][1] * 1 + uploadStats[j][1] * 1;
-                }
-                temp = temp / totalUsage;
-                dataUsageRatio.push(temp);
-            }
-            if (dataUsageRatio.length > 0) {
-                const dataStddev = stats.stdev(dataUsageRatio);
-                log.info("dataStddev", dataStddev, host.o.mac);
-                if (dataStddev > this.stddev_limit &&
-                    dataUsageRatio[dataUsageRatio.length - 1] > dataUsageRatio[dataUsageRatio.length - 2]) {
-                    this.genAbnormalDownloadAlarm(host, downloadStats[0][0], downloadStats[downloadStats.length - 1][0], totalUsage, downloadStats, uploadStats);
+            const dataUsage = await this.getTimewindowDataUsage(0, mac);
+            const dataUsage2HourWindow = await this.getTimewindowDataUsage(2, mac);
+            const dataUsage8HourWindow = await this.getTimewindowDataUsage(8, mac);
+            const hostTotalUsage = dataUsage.reduce((total, item) => { return total.count * 1 + item.count * 1 })
+            const hostDataUsagePercentage = hostTotalUsage / systemTotalUsage;
+            log.info(mac)
+            log.info("total Usage percentage", hostTotalUsage, systemTotalUsage, hostDataUsagePercentage)
+            log.info("originDataUsage", dataUsage)
+            log.info("dataUsage2HourWindow", dataUsage2HourWindow)
+            log.info("dataUsage8HourWindow", dataUsage8HourWindow)
+            const begin = dataUsage[0].ts, end = dataUsage[dataUsage.length - 1].ts;
+            for (let i = 0; i < dataUsage2HourWindow.length; i++) {
+                if (dataUsage2HourWindow[i] > this.minsize && dataUsage8HourWindow[i] > this.minsize) {
+                    const ratio = dataUsage2HourWindow[i] / dataUsage8HourWindow[i];
+                    log.info("ratio", ratio, this.ratio)
+                    if (ratio > this.ratio && hostDataUsagePercentage > this.percentage) {
+                        this.genAbnormalBandwidthUsageAlarm(host, begin, end, hostTotalUsage, dataUsage);
+                        break;
+                    }
                 }
             }
         }
     }
-    async genAbnormalDownloadAlarm(host, begin, end, totalUsage, downloadStats, uploadStats) {
-        log.info("genAbnormalDownloadAlarm", host.o, begin, end)
+    async getTimewindowDataUsage(timeWindow, mac) {
+        const downloadKey = `download${mac ? ':' + mac : ''}`;
+        const uploadKey = `upload${mac ? ':' + mac : ''}`;
+        //[[ts,Bytes]]  [[1574325720, 9396810],[ 1574325780, 3141018 ]]
+        const slot = 4;// 1hour 4 slots
+        const slots = slot * timeWindow || 1;
+        const sumSlots = (slots + 1) * (slots / 2);
+        const analytics_slots = slot * this.analytics_hours + slots
+        const downloadStats = await getHitsAsync(downloadKey, "15minutes", analytics_slots);
+        const uploadStats = await getHitsAsync(uploadKey, "15minutes", analytics_slots);
+        let dataUsageTimeWindow = [];
+        if (downloadStats.length < slots) return;
+        for (let i = slots - 1; i < downloadStats.length; i++) {
+            let temp = {
+                count: 0,
+                ts: downloadStats[i][0]
+            };
+            for (let j = i - slots + 1; j <= i; j++) {
+                const weight = (slots - (i - j)) / sumSlots;
+                temp.count = temp.count * 1 + (downloadStats[j][1] * 1 + uploadStats[j][1] * 1) * weight;
+            }
+            dataUsageTimeWindow.push(temp);
+        }
+        return dataUsageTimeWindow
+    }
+    async genAbnormalBandwidthUsageAlarm(host, begin, end, totalUsage, dataUsage) {
+        log.info("genAbnormalBandwidthUsageAlarm", host.o, begin, end)
         //get top flows from begin to end
         const mac = host.o.mac;
         const name = host.o.name || host.o.bname;
         const flows = await this.getSumFlows(mac, begin, end);
         const destNames = flows.map((flow) => flow.aggregationHost).join(',')
-        let alarm = new Alarm.AbnormalDownloadAlarm(new Date() / 1000, name, {
+        let alarm = new Alarm.AbnormalBandwidthUsageAlarm(new Date() / 1000, name, {
             "p.device.mac": mac,
             "p.device.id": name,
             "p.device.name": name,
             "p.device.ip": host.o.ipv4Addr,
-            "p.download": totalUsage,
+            "p.totalUsage": totalUsage,
             "p.begin.ts": begin,
             "p.end.ts": end,
-            "e.download.transfers": downloadStats,
-            "e.upload.transfers": uploadStats,
+            "e.transfers": dataUsage,
             "p.flows": JSON.stringify(flows),
             "p.dest.names": destNames
         });

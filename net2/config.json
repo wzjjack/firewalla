@@ -30,7 +30,7 @@
   "timing": {
     "alarm.cooldown": 900,
     "alarm.large_upload.cooldown": 14400,
-    "alarm.large_download.cooldown": 28800,
+    "alarm.abnormal_bandwidth_usage.cooldown": 14400,
     "alarm.vpn_client_connection.cooldown": 14400,
     "alarm.upnp.cooldown": 604800,
     "alarm.subnet.cooldown": 2592000
@@ -499,11 +499,11 @@
     "WirelessInterfaceSensor": {},
     "DataUsageSensor": {
       "refreshInterval": 15,
-      "stddev_limit": 0.2,
-      "analytics_hours": 24,
-      "timewindow": 2,
+      "ratio": 2,
+      "percentage": 0.8,
+      "analytics_hours": 8,
       "topXflows": 2,
-      "minsize_download": 500000000
+      "minsize": 100000000
     }
   },
   "hooks": {
@@ -589,7 +589,7 @@
     "video": true,
     "game": true,
     "large_upload": true,
-    "large_download": true,
+    "abnormal_bandwidth_usage": true,
     "new_device": true,
     "new_device_block": false,
     "device_online": true,

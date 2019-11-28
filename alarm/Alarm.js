@@ -591,16 +591,16 @@ class OutboundAlarm extends Alarm {
     return true;
   }
 }
-class AbnormalDownloadAlarm extends Alarm {
+class AbnormalBandwidthUsageAlarm extends Alarm {
   constructor(timestamp, device, info) {
-    super("ALARM_ABNORMAL_DOWNLOAD", timestamp, device, info);
+    super("ALARM_ABNORMAL_BANDWIDTH_USAGE", timestamp, device, info);
   }
   keysToCompareForDedup() {
     return ["p.device.mac"];
   }
   getExpirationTime() {
-    // for download activity, only generate one alarm every 8 hours.
-    return fc.getTimingConfig("alarm.large_download.cooldown") || 60 * 60 * 8
+    // for download activity, only generate one alarm every 4 hours.
+    return fc.getTimingConfig("alarm.abnormal_bandwidth_usage.cooldown") || 60 * 60 * 4
   }
 }
 
@@ -772,7 +772,7 @@ let classMapping = {
   ALARM_VIDEO: VideoAlarm.prototype,
   ALARM_GAME: GameAlarm.prototype,
   ALARM_LARGE_UPLOAD: LargeTransferAlarm.prototype,
-  ALARM_ABNORMAL_DOWNLOAD: AbnormalDownloadAlarm.prototype,
+  AbnormalBandwidthUsageAlarm: AbnormalBandwidthUsageAlarm.prototype,
   ALARM_NEW_DEVICE: NewDeviceAlarm.prototype,
   ALARM_DEVICE_BACK_ONLINE: DeviceBackOnlineAlarm.prototype,
   ALARM_DEVICE_OFFLINE: DeviceOfflineAlarm.prototype,
@@ -793,7 +793,7 @@ module.exports = {
   GameAlarm: GameAlarm,
   PornAlarm: PornAlarm,
   LargeTransferAlarm: LargeTransferAlarm,
-  AbnormalDownloadAlarm: AbnormalDownloadAlarm,
+  AbnormalBandwidthUsageAlarm: AbnormalBandwidthUsageAlarm,
   NewDeviceAlarm: NewDeviceAlarm,
   DeviceBackOnlineAlarm: DeviceBackOnlineAlarm,
   DeviceOfflineAlarm: DeviceOfflineAlarm,
