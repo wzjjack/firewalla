@@ -71,13 +71,6 @@ class DataUsageSensor extends Sensor {
             const hostRecentlyTotalUsage = this.getRecentlyDataUsage(dataUsage, this.smWindow * this.slot)
             const hostDataUsagePercentage = hostRecentlyTotalUsage / systemRecentlyTotalUsage || 0;
             const begin = dataUsage[0].ts, end = dataUsage[dataUsage.length - 1].ts;
-            if (mac == "F4:0F:24:37:4F:FC" || mac == "70:E7:2C:58:64:1A") {
-                log.info(mac, begin, end)
-                log.info("dataUsage", dataUsage.map((item) => { return item.count }))
-                log.info("dataUsageSmHourWindow", dataUsageSmHourWindow.map((item) => { return item.count }))
-                log.info("dataUsageMdHourWindow", dataUsageMdHourWindow.map((item) => { return item.count }))
-                log.info("hostDataUsagePercentage", hostDataUsagePercentage)
-            }
             for (let i = 0; i < dataUsageSmHourWindow.length; i++) {
                 if (dataUsageSmHourWindow[i].count > this.minsize && dataUsageMdHourWindow[i].count > this.minsize) {
                     const ratio = dataUsageSmHourWindow[i].count / dataUsageMdHourWindow[i].count;
