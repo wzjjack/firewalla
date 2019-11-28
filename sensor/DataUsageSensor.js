@@ -28,13 +28,15 @@ const flowTool = new FlowTool();
 const Alarm = require('../alarm/Alarm.js');
 const AlarmManager2 = require('../alarm/AlarmManager2.js');
 const alarmManager2 = new AlarmManager2();
-const featureName = 'abnormal_bandwidth_usage';
+const abnormalBandwidthUsageFeatureName = 'abnormal_bandwidth_usage';
+const dataPlanFeatureName = 'data_plan';
+const rclient = require('../util/redis_manager.js').getRedisClient();
+const fc = require('../net2/config.js');
 class DataUsageSensor extends Sensor {
     constructor() {
         super();
     }
     run() {
-        //todo add policy for per device data usage monitor or system
         this.refreshInterval = (this.config.refreshInterval || 15) * 60 * 1000;
         this.ratio = this.config.ratio || 2;
         this.analytics_hours = this.config.analytics_hours || 8;
@@ -44,11 +46,11 @@ class DataUsageSensor extends Sensor {
         this.smWindow = this.config.smWindow || 2;
         this.mdWindow = this.config.mdWindow || 8;
         this.slot = 4// 1hour 4 slots
-        this.hookFeature(featureName);
+        this.hookFeature();
     }
     job() {
-        this.checkDataUsage()
-        this.checkMonthlyDataUsage()
+        fc.isFeatureOn(abnormalBandwidthUsageFeatureName) && this.checkDataUsage()
+        fc.isFeatureOn(dataPlanFeatureName) && this.checkMonthlyDataUsage()
     }
     globalOn() {
     }
@@ -170,12 +172,22 @@ class DataUsageSensor extends Sensor {
         })
     }
     async checkMonthlyDataUsage() {
-        //data plan 1TB,10TB, etc..
-        //monthly? 11.01-11.30 or 11.05 - 12.05
-        const dataPlan = '';
-        const { totalDownload, totalUpload } = await hostManager.monthlyDataStats();
-        if (totalDownload + totalUpload > dataPlan) {
+        log.info("Start check monthly data usage")
+        let dataPlan = await rclient.getAsync('sys:data:plan');
+        if (!dataPlan) return;
+        dataPlan = JSON.parse(dataPlan);
+        const { date, total } = dataPlan;
+        const { totalDownload, totalUpload, monthlyBeginTs, monthlyEndTs } = await hostManager.monthlyDataStats(null, date);
+        if (totalDownload + totalUpload > total) {
             //gen over data plan alarm
+            let alarm = new Alarm.OverDataPlanUsageAlarm(new Date() / 1000, null, {
+                "p.monthly.endts": monthlyEndTs,
+                "p.percentage": ((totalDownload + totalUpload) / total * 100).toFixed(2) + '%',
+                "p.totalUsage": totalDownload + totalUpload,
+                "p.planUsage": total,
+                "p.alarm.level": 'over'
+            });
+            await alarmManager2.enqueueAlarm(alarm);
         }
     }
 }
