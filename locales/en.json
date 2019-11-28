@@ -100,5 +100,7 @@
   "NOTIF_VPN_CLIENT_LINK_BROKEN_TITLE": "VPN Disconnected",
   "NOTIF_VPN_CLIENT_LINK_BROKEN_BODY": "VPN {{{profileId}}} is disconnected unexpectedly.",
   "NOTIF_TITLE_ALARM_ABNORMAL_BANDWIDTH_USAGE": "Abnormal Bandwidth Usage",
-  "NOTIF_ALARM_ABNORMAL_BANDWIDTH_USAGE": "Device {{{p.device.name}}} is transfering too much data from sites {{{p.dest.names}}} and etc."
+  "NOTIF_ALARM_ABNORMAL_BANDWIDTH_USAGE": "Device {{{p.device.name}}} is transfering too much data from sites {{{p.dest.names}}} and etc.",
+  "NOTIF_TITLE_ALARM_OVER_DATA_PLAN_USAGE": "Bandwidth usage alarm",
+  "NOTIF_ALARM_OVER_DATA_PLAN_USAGE": "Your bandwidth usage has exceeded {{{p.percentage}}} of the threshold ({{{p.totalUsage.humansize}}} of {{{p.planUsage.humansize}}})."
 }
