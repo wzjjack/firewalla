@@ -69,12 +69,12 @@ class DataUsageSensor extends Sensor {
             const dataUsageSmHourWindow = await this.getTimewindowDataUsage(this.smWindow, mac);
             const dataUsageMdHourWindow = await this.getTimewindowDataUsage(this.mdWindow, mac);
             const hostRecentlyTotalUsage = this.getRecentlyDataUsage(dataUsage, this.smWindow * this.slot)
+            const hostDataUsagePercentage = hostRecentlyTotalUsage / systemRecentlyTotalUsage || 0;
             log.info(mac, dataUsage[0].ts, dataUsage[dataUsage.length - 1].ts)
             log.info("dataUsage", dataUsage.map((item) => { return item.count }))
             log.info("dataUsageSmHourWindow", dataUsageSmHourWindow.map((item) => { return item.count }))
             log.info("dataUsageMdHourWindow", dataUsageMdHourWindow.map((item) => { return item.count }))
             log.info("hostDataUsagePercentage", hostDataUsagePercentage)
-            const hostDataUsagePercentage = hostRecentlyTotalUsage / systemRecentlyTotalUsage || 0;
             const end = dataUsage[dataUsage.length - 1].ts;
             const begin = end - this.smWindow * 60 * 60;
             for (let i = 0; i < dataUsageSmHourWindow.length; i++) {
