@@ -41,8 +41,8 @@ class DataUsageSensor extends Sensor {
         this.ratio = this.config.ratio || 2;
         this.analytics_hours = this.config.analytics_hours || 8;
         this.percentage = this.config.percentage || 0.8;
-        this.topXflows = this.config.topXflows || 2;
-        this.minsize = this.config.minsize || 100 * 1000 * 1000;
+        this.topXflows = this.config.topXflows || 10;
+        this.minsize = this.config.minsize || 200 * 1000 * 1000;
         this.smWindow = this.config.smWindow || 2;
         this.mdWindow = this.config.mdWindow || 8;
         this.slot = 4// 1hour 4 slots
@@ -74,14 +74,19 @@ class DataUsageSensor extends Sensor {
             log.info("dataUsage", dataUsage.map((item) => { return item.count }))
             log.info("dataUsageSmHourWindow", dataUsageSmHourWindow.map((item) => { return item.count }))
             log.info("dataUsageMdHourWindow", dataUsageMdHourWindow.map((item) => { return item.count }))
-            log.info("hostDataUsagePercentage", hostDataUsagePercentage)
+            log.info("hostDataUsagePercentage", hostDataUsagePercentage, hostRecentlyTotalUsage, systemRecentlyTotalUsage)
             const end = dataUsage[dataUsage.length - 1].ts;
             const begin = end - this.smWindow * 60 * 60;
-            for (let i = 0; i < dataUsageSmHourWindow.length; i++) {
-                if (dataUsageSmHourWindow[i].count > this.minsize && dataUsageMdHourWindow[i].count > this.minsize) {
-                    const ratio = dataUsageSmHourWindow[i].count / dataUsageMdHourWindow[i].count;
-                    if (ratio > this.ratio && hostDataUsagePercentage > this.percentage) {
-                        this.genAbnormalBandwidthUsageAlarm(host, begin, end, hostRecentlyTotalUsage, dataUsage);
+            const steps = this.smWindow * this.slot;
+            const length = dataUsageSmHourWindow.length;
+            if (hostRecentlyTotalUsage < steps * this.minsize || hostDataUsagePercentage < this.percentage) continue;
+            for (let i = 1; i <= steps; i++) {
+                const smUsage = dataUsageSmHourWindow[length - i].count,
+                    mdUsage = dataUsageMdHourWindow[length - i].count;
+                if (smUsage > this.minsize && mdUsage > this.minsize && smUsage > mdUsage) {
+                    const ratio = smUsage / mdUsage;
+                    if (ratio > this.ratio) {
+                        this.genAbnormalBandwidthUsageAlarm(host, begin, end, hostRecentlyTotalUsage, dataUsage, hostDataUsagePercentage);
                         break;
                     }
                 }
@@ -123,7 +128,7 @@ class DataUsageSensor extends Sensor {
         }
         return total;
     }
-    async genAbnormalBandwidthUsageAlarm(host, begin, end, totalUsage, dataUsage) {
+    async genAbnormalBandwidthUsageAlarm(host, begin, end, totalUsage, dataUsage, percentage) {
         log.info("genAbnormalBandwidthUsageAlarm", host.o.mac, begin, end)
         //get top flows from begin to end
         const mac = host.o.mac;
@@ -140,7 +145,9 @@ class DataUsageSensor extends Sensor {
             "p.end.ts": end,
             "e.transfers": dataUsage,
             "p.flows": JSON.stringify(flows),
-            "p.dest.names": destNames
+            "p.dest.names": destNames,
+            "p.duration": this.smWindow,
+            "p.bandwidth.percentage": percentage
         });
         await alarmManager2.enqueueAlarm(alarm);
     }
