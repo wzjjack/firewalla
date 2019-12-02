@@ -42,9 +42,10 @@ class DataUsageSensor extends Sensor {
         this.analytics_hours = this.config.analytics_hours || 8;
         this.percentage = this.config.percentage || 0.8;
         this.topXflows = this.config.topXflows || 10;
-        this.minsize = this.config.minsize || 200 * 1000 * 1000;
+        this.minsize = this.config.minsize || 150 * 1000 * 1000;
         this.smWindow = this.config.smWindow || 2;
         this.mdWindow = this.config.mdWindow || 8;
+        this.dataPlanMinPercentage = this.config.dataPlanMinPercentage || 0.8;
         this.slot = 4// 1hour 4 slots
         this.hookFeature();
     }
@@ -135,6 +136,7 @@ class DataUsageSensor extends Sensor {
         const name = host.o.name || host.o.bname;
         const flows = await this.getSumFlows(mac, begin, end);
         const destNames = flows.map((flow) => flow.aggregationHost).join(',')
+        percentage = percentage * 100;
         let alarm = new Alarm.AbnormalBandwidthUsageAlarm(new Date() / 1000, name, {
             "p.device.mac": mac,
             "p.device.id": name,
@@ -147,7 +149,7 @@ class DataUsageSensor extends Sensor {
             "p.flows": JSON.stringify(flows),
             "p.dest.names": destNames,
             "p.duration": this.smWindow,
-            "p.bandwidth.percentage": percentage
+            "p.percentage": percentage.toFixed(2) + '%'
         });
         await alarmManager2.enqueueAlarm(alarm);
     }
@@ -191,14 +193,17 @@ class DataUsageSensor extends Sensor {
         dataPlan = JSON.parse(dataPlan);
         const { date, total } = dataPlan;
         const { totalDownload, totalUpload, monthlyBeginTs, monthlyEndTs } = await hostManager.monthlyDataStats(null, date);
-        if (totalDownload + totalUpload > total) {
+        let percentage = ((totalDownload + totalUpload) / total)
+        if (percentage >= this.dataPlanMinPercentage) {
             //gen over data plan alarm
+            const level = Math.floor(percentage * 10);
+            percentage = percentage * 100;
             let alarm = new Alarm.OverDataPlanUsageAlarm(new Date() / 1000, null, {
                 "p.monthly.endts": monthlyEndTs,
-                "p.percentage": ((totalDownload + totalUpload) / total * 100).toFixed(2) + '%',
+                "p.percentage": percentage.toFixed(2) + '%',
                 "p.totalUsage": totalDownload + totalUpload,
                 "p.planUsage": total,
-                "p.alarm.level": 'over'
+                "p.alarm.level": level > 10 ? 'over' : level
             });
             await alarmManager2.enqueueAlarm(alarm);
         }

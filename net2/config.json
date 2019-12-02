@@ -506,7 +506,8 @@
       "smWindow": 2,
       "mdWindow": 8,
       "topXflows": 10,
-      "minsize": 200000000
+      "minsize": 150000000,
+      "dataPlanMinPercentage": 0.8
     }
   },
   "hooks": {
