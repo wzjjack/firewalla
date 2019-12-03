@@ -38,7 +38,7 @@ class DataUsageSensor extends Sensor {
     }
     run() {
         this.refreshInterval = (this.config.refreshInterval || 15) * 60 * 1000;
-        this.ratio = this.config.ratio || 2;
+        this.ratio = this.config.ratio || 1.2;
         this.analytics_hours = this.config.analytics_hours || 8;
         this.percentage = this.config.percentage || 0.8;
         this.topXflows = this.config.topXflows || 10;
@@ -71,11 +71,6 @@ class DataUsageSensor extends Sensor {
             const dataUsageMdHourWindow = await this.getTimewindowDataUsage(this.mdWindow, mac);
             const hostRecentlyTotalUsage = this.getRecentlyDataUsage(dataUsage, this.smWindow * this.slot)
             const hostDataUsagePercentage = hostRecentlyTotalUsage / systemRecentlyTotalUsage || 0;
-            log.info(mac, dataUsage[0].ts, dataUsage[dataUsage.length - 1].ts)
-            log.info("dataUsage", dataUsage.map((item) => { return item.count }))
-            log.info("dataUsageSmHourWindow", dataUsageSmHourWindow.map((item) => { return item.count }))
-            log.info("dataUsageMdHourWindow", dataUsageMdHourWindow.map((item) => { return item.count }))
-            log.info("hostDataUsagePercentage", hostDataUsagePercentage, hostRecentlyTotalUsage, systemRecentlyTotalUsage)
             const end = dataUsage[dataUsage.length - 1].ts;
             const begin = end - this.smWindow * 60 * 60;
             const steps = this.smWindow * this.slot;
@@ -84,10 +79,8 @@ class DataUsageSensor extends Sensor {
             for (let i = 1; i <= steps; i++) {
                 const smUsage = dataUsageSmHourWindow[length - i].count,
                     mdUsage = dataUsageMdHourWindow[length - i].count;
-                log.info("smUsage,mdUsage", smUsage, mdUsage)
                 if (smUsage > this.minsize && mdUsage > this.minsize && smUsage > mdUsage) {
                     const ratio = smUsage / mdUsage;
-                    log.info("compare ratio", ratio, this.ratio)
                     if (ratio > this.ratio) {
                         this.genAbnormalBandwidthUsageAlarm(host, begin, end, hostRecentlyTotalUsage, dataUsage, hostDataUsagePercentage);
                         break;
