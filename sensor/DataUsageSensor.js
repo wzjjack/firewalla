@@ -84,8 +84,10 @@ class DataUsageSensor extends Sensor {
             for (let i = 1; i <= steps; i++) {
                 const smUsage = dataUsageSmHourWindow[length - i].count,
                     mdUsage = dataUsageMdHourWindow[length - i].count;
+                log.info("smUsage,mdUsage", smUsage, mdUsage)
                 if (smUsage > this.minsize && mdUsage > this.minsize && smUsage > mdUsage) {
                     const ratio = smUsage / mdUsage;
+                    log.info("compare ratio", ratio, this.ratio)
                     if (ratio > this.ratio) {
                         this.genAbnormalBandwidthUsageAlarm(host, begin, end, hostRecentlyTotalUsage, dataUsage, hostDataUsagePercentage);
                         break;
@@ -106,7 +108,7 @@ class DataUsageSensor extends Sensor {
         const uploadStats = await getHitsAsync(uploadKey, "15minutes", analytics_slots);
         let dataUsageTimeWindow = [];
         if (downloadStats.length < slots) return;
-        for (let i = slots - 1; i < downloadStats.length; i++) {
+        for (let i = slots; i < downloadStats.length; i++) {
             let temp = {
                 count: 0,
                 ts: downloadStats[i][0]
@@ -203,7 +205,7 @@ class DataUsageSensor extends Sensor {
                 "p.percentage": percentage.toFixed(2) + '%',
                 "p.totalUsage": totalDownload + totalUpload,
                 "p.planUsage": total,
-                "p.alarm.level": level > 10 ? 'over' : level
+                "p.alarm.level": level >= 10 ? 'over' : level
             });
             await alarmManager2.enqueueAlarm(alarm);
         }

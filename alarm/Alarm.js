@@ -618,7 +618,7 @@ class OverDataPlanUsageAlarm extends Alarm{
     return true;
   }
   getExpirationTime() {
-    return fc.getTimingConfig("alarm.alarm.data_plan.cooldown.cooldown") || 60 * 60 * 4
+    return fc.getTimingConfig("alarm.data_plan.cooldown") || 60 * 60 * 24 * 30
   }
   requiredKeys(){
     return [];
