@@ -228,7 +228,7 @@ class BonjourSensor extends Sensor {
   }
 
   bonjourParse(service) {
-    log.debug("Discover:Bonjour:Parsing:Received", service);
+    log.info("Discover:Bonjour:Parsing:Received", service);
     if (service == null) {
       return;
     }
