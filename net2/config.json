@@ -125,7 +125,6 @@
       ]
     },
     "DNSMASQSensor": {},
-    "HeapSensor": {},
     "IntelReportSensor": {},
     "VPNRelaySensor": {},
     "PublicIPSensor": {
