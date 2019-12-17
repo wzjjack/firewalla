@@ -13,9 +13,7 @@
     "networkInterfaces": [
       "eth0",
       "eth0:0",
-      "wlan0",
-      "eth1",
-      "eth2"
+      "wlan0"
     ]
   },
   "iptables": {

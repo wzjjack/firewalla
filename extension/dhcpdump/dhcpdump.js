@@ -23,7 +23,7 @@ let jsonfile = require('jsonfile');
 
 let f = require('../../net2/Firewalla.js');
 let fHome = f.getFirewallaHome();
-
+const networkTool = require('../../net2/NetworkTool')();
 let userID = f.getUserID();
 let dhcpdumpSpawn = null;
 let pid = null;
@@ -153,31 +153,33 @@ OPTION:  12 ( 12) Host name                 Great-Room-3
   }
 
   rawStart(callback) {
-    callback = callback || function() {}
+    callback = callback || function () { }
+    const interfaces = await networkTool.getLocalNetworkInterface();
+    for (const interface of interfaces) {
+      if(!interface.name) continue;
+      let spawn = require('child_process').spawn;
+      let dhcpdumpSpawn = spawn('sudo', ['dhcpdump', '-i', interface.name]);
+      let pid = dhcpdumpSpawn.pid;
+      let StringDecoder = require('string_decoder').StringDecoder;
+      let decoder = new StringDecoder('utf8');
 
+      log.info("DHCPDump started with PID: ", pid);
 
-    let spawn = require('child_process').spawn;
-    let dhcpdumpSpawn = spawn('sudo', ['dhcpdump', '-i', 'eth0']);
-    let pid = dhcpdumpSpawn.pid;
-    let StringDecoder = require('string_decoder').StringDecoder;
-    let decoder = new StringDecoder('utf8');
+      dhcpdumpSpawn.stdout.on('data', (data) => {
+        log.debug("Found a dhcpdiscover request");
+        let message = decoder.write(data);
 
-    log.info("DHCPDump started with PID: ", pid);
+        this.parseEvents(message).map(e => callback(e))
+      });
 
-    dhcpdumpSpawn.stdout.on('data', (data) => {
-      log.debug("Found a dhcpdiscover request");
-      let message = decoder.write(data);
+      dhcpdumpSpawn.stderr.on('data', (data) => {
+        log.error("Got error when running dhcp: ", data);
+      });
 
-      this.parseEvents(message).map(e => callback(e))
-    });
-
-    dhcpdumpSpawn.stderr.on('data', (data) => {
-      log.error("Got error when running dhcp: ", data);
-    });
-
-    dhcpdumpSpawn.on('close', (code) => {
-      log.info("DHCPDump exited with error code: ", code);
-    });
+      dhcpdumpSpawn.on('close', (code) => {
+        log.info("DHCPDump exited with error code: ", code);
+      });
+    }
   }
 
   rawStop(callback) {
