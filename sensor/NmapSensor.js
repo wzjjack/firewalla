@@ -168,7 +168,6 @@ class NmapSensor extends Sensor {
 
   async getNetworkRanges() {
     let results = await networkTool.getLocalNetworkInterface()
-    log.info("getLocalNetworkInterface",results)
     return results &&
       results.map((x) => networkTool.capSubnet(x.subnet))
   }
