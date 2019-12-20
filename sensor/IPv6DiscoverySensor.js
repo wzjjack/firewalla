@@ -34,11 +34,9 @@ const execAsync = require('child-process-promise').exec
 class IPv6DiscoverySensor extends Sensor {
   constructor() {
     super();
-    this.networkInterface = networkTool.getLocalNetworkInterface();
     this.enabled = true; // very basic feature, always enabled
     let p = require('../net2/MessageBus.js');
     this.publisher = new p('info','Scan:Done', 10);
-    log.debug("Starting IPv6DiscoverySensor Interfaces [",this.networkInterface,"]");
   }
 
   run() {

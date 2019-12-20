@@ -32,6 +32,7 @@ const util = require('util');
 
 const SysManager = require('../../net2/SysManager.js');
 const sysManager = new SysManager();
+const networkTool = require('../../net2/NetworkTool')();
 
 const _ = require('lodash');
 
@@ -48,14 +49,13 @@ const upnpCheckInterval = 15 * 60 * 1000 // 15 mins
 module.exports = class {
   constructor(gw) {
     if (instance == null) {
+      this.gw = null;
       if (gw)
-        this.gw = gw;
-      else
-        this.gw = sysManager.myGateway();
-
+        this.gw = [gw];
       instance = this;
       this.refreshTimers = {};
-
+      this.natpmpClients = [];
+      this.interfaces = null;
       // TODO: move this to UPNPSensor
       // periodical checks whether all upnp mappings registered are alive
       // if not, adds back
@@ -91,47 +91,56 @@ module.exports = class {
           upnpCheckInterval
         )
       }
+      (async () => {
+        const interfaces = await networkTool.getLocalNetworkInterface();
+        if (!this.gw) {
+          this.gw = [];
+          for (const intf of interfaces) {
+            if (sysManager.myGateway(intf.name)) {
+              this.gw.push(sysManager.myGateway(intf.name))
+            }
+          }
+        }
+        this.gw && this.gw.forEach((gw) => {
+          try {
+            const natpmpClient = natpmp.connect(gw);
+            natpmpClient.on('error', err => {
+              log.error("natpmp emitted", err);
+            });
+            this.natpmpClients.push(natpmpClient)
+          } catch (e) {
+            log.error("UPNP:natpmpClient Unable to initalize", e);
+          }
+        })
+      })()
     }
     return instance;
-  }
-
-  natpmpClient() {
-    try {
-      if (this._natpmpClient == null) {
-        this._natpmpClient = natpmp.connect(this.gw);
-        this._natpmpClient.on('error', err => {
-          log.error("natpmp emitted", err);
-        });
-      }
-      return this._natpmpClient;
-    } catch (e) {
-      log.error("UPNP:natpmpClient Unable to initalize", e);
-    }
   }
 
   /* return if NATPMP or UPNP
    *
    */
   getCapability(callback) {
-    callback = callback || function() { };
+    callback = callback || function () { };
     try {
       upnpClient.externalIp((err, ip) => {
         if (err != null || ip == null) {
           log.info('UPnP test failed')
           this.upnpEnabled = false;
-          if (this.natpmpClient()) {
-
-            this.natpmpClient().externalIp((err, info) => {
-              if (err == null && info != null) {
-                this.natpmpIP = info.ip.join('.');
-                log.info('NAT-PMP test passed')
-                this.natpmpEnabled = true;
-              } else {
-                log.info('NAT-PMP test failed')
-                this.natpmpEnabled = false;
-              }
-              callback(null, this.upnpEnabled, this.natpmpEnabled);
-            });
+          if (this.natpmpClients.length > 0) {
+            for (const natpmpClient of this.natpmpClients) {
+              natpmpClient.externalIp((err, info) => {
+                if (err == null && info != null) {
+                  this.natpmpIP = info.ip.join('.');
+                  log.info('NAT-PMP test passed')
+                  this.natpmpEnabled = true;
+                } else {
+                  log.info('NAT-PMP test failed')
+                  this.natpmpEnabled = false;
+                }
+                callback(null, this.upnpEnabled, this.natpmpEnabled);
+              });
+            }
           }
         } else {
           this.upnpIP = ip;
@@ -148,7 +157,7 @@ module.exports = class {
 
   addPortMapping(protocol, localPort, externalPort, description, callback) {
     protocol = protocol.toLowerCase()
-    callback = callback || function() { };
+    callback = callback || function () { };
     this.getCapability(() => {
       try {
         if (this.upnpEnabled == true) {
@@ -189,9 +198,9 @@ module.exports = class {
 
       // check if mapping registered
       if (_.isEmpty(upnpMappings.find((m) =>
-        m.localPort     == localPort &&
-        m.externalPort  == externalPort &&
-        m.protocol      === protocol
+        m.localPort == localPort &&
+        m.externalPort == externalPort &&
+        m.protocol === protocol
       ))) {
         upnpMappings.push(mappingObj);
       } else {
@@ -205,38 +214,42 @@ module.exports = class {
   addPortMappingNATPMP(protocol, localPort, externalPort, description, callback) {
     protocol = protocol.toLowerCase()
     callback = callback || function () { };
-    if (this.natpmpClient() == null) {
+    if (this.natpmpClients.length == 0) {
       callback(new Error("natpmpClient null"), null);
       return;
     }
-    this.natpmpClient().portMapping({ type: protocol, private: localPort, public: externalPort, ttl: natpmpTimeout }, (err, info) => {
-      if (err == null) {
-        this.refreshTimers[localPort + ":" + externalPort] = setTimeout(() => {
-          this.addPortMappingNATPMP(protocol, localPort, externalPort, description, () => {
-          });
-        }, natpmpTimeout / 2 * 1000);
-      }
-      callback(err, info);
-    });
+    for (const natpmpClient of this.natpmpClients) {
+      natpmpClient.portMapping({ type: protocol, private: localPort, public: externalPort, ttl: natpmpTimeout }, (err, info) => {
+        if (err == null) {
+          this.refreshTimers[localPort + ":" + externalPort] = setTimeout(() => {
+            this.addPortMappingNATPMP(protocol, localPort, externalPort, description, () => {
+            });
+          }, natpmpTimeout / 2 * 1000);
+        }
+        callback(err, info);
+      });
+    }
   }
 
   removePortMappingNATPMP(protocol, localPort, externalPort, callback) {
     protocol = protocol.toLowerCase()
     callback = callback || function () { };
     let timer = this.refreshTimers[localPort + ":" + externalPort];
-    if (this.natpmpClient() == null) {
+    if (this.natpmpClients.length == 0) {
       callback(new Error("natpmpClient null"), null);
       return;
     }
     if (timer) {
       clearTimeout(timer);
     }
-    this.natpmpClient().portUnmapping({ type: protocol, private: localPort, public: externalPort, ttl: 0 }, (err, info) => {
-      if (err) {
-        log.error("UPNP.removePortMappingNATPMP", err);
-      }
-      callback(err, info);
-    });
+    for (const natpmpClient of this.natpmpClients) {
+      natpmpClient.portUnmapping({ type: protocol, private: localPort, public: externalPort, ttl: 0 }, (err, info) => {
+        if (err) {
+          log.error("UPNP.removePortMappingNATPMP", err);
+        }
+        callback(err, info);
+      });
+    }
   }
 
   removePortMapping(protocol, localPort, externalPort, callback) {
@@ -277,9 +290,9 @@ module.exports = class {
       }
 
       upnpMappings = _.reject(upnpMappings, (m) =>
-        m.localPort     == localPort &&
-        m.externalPort  == externalPort &&
-        m.protocol      === protocol
+        m.localPort == localPort &&
+        m.externalPort == externalPort &&
+        m.protocol === protocol
       );
 
       log.info(util.format("Port mapping [%s, %s, %s] is removed successfully"
@@ -292,7 +305,7 @@ module.exports = class {
   }
 
   getLocalPortMappings(description, callback) {
-    callback = callback || function() {};
+    callback = callback || function () { };
     upnpClient.getMappings({
       // local: true,
       // description: description
@@ -302,13 +315,13 @@ module.exports = class {
   }
 
   getPortMappingsUPNP(callback) {
-    callback = callback || function() {};
+    callback = callback || function () { };
     upnpClient.getMappings(callback);
   }
 
   hasPortMapping(protocol, localPort, externalPort, description, callback) {
     protocol = protocol.toLowerCase()
-    callback = callback || function() {};
+    callback = callback || function () { };
     upnpClient.getMappings({
       // local: true
       // description: description
@@ -319,7 +332,7 @@ module.exports = class {
         return;
       }
       log.debug(util.inspect(results));
-      let matches = results.find((r) => this.mappingCompare(r, {protocol, localPort, externalPort}));
+      let matches = results.find((r) => this.mappingCompare(r, { protocol, localPort, externalPort }));
 
       log.debug(util.inspect(matches));
 
@@ -333,15 +346,15 @@ module.exports = class {
 
   mappingCompare(natUpnpMapping, localMapping) {
     // "==" is used instead of "===" with intention here to enable comparison between number and string
-    return  natUpnpMapping.public.port   ==  localMapping.externalPort &&
-      natUpnpMapping.private.port  ==  localMapping.localPort &&
-      natUpnpMapping.protocol      === localMapping.protocol;
+    return natUpnpMapping.public.port == localMapping.externalPort &&
+      natUpnpMapping.private.port == localMapping.localPort &&
+      natUpnpMapping.protocol === localMapping.protocol;
   }
 
   async getExternalIP() {
     return new Promise((resolve, reject) => {
       upnpClient.externalIp((err, ip) => {
-        if(err) {
+        if (err) {
           reject(err);
         } else {
           resolve(ip);

@@ -39,24 +39,22 @@ class ICMP6Sensor extends Sensor {
 
   run() {
     (async () => {
-      const interfaces = await networkTool.getLocalNetworkInterface();
-      if (interfaces && interfaces.length > 0) {
-        this.interfaces = interfaces
-        for (const interface of interfaces) {
-          // listen on icmp6 neighbor-advertisement which is not sent from firewalla
-          const tcpdumpSpawn = spawn('sudo', ['tcpdump', '-i', interface.name, '-en', `!(ether src ${interface.mac_address}) && icmp6 && ip6[40] == 136`]);
-          const pid = tcpdumpSpawn.pid;
-          log.info("TCPDump icmp6 started with PID: ", pid);
-          const reader = readline.createInterface({
-            input: tcpdumpSpawn.stdout
-          });
-          reader.on('line', (line) => {
-            this.processNeighborAdvertisement(line);
-          });
-          tcpdumpSpawn.on('close', (code) => {
-            log.info("TCPDump icmp6 exited with code: ", code);
-          })
-        }
+      this.interfaces = await networkTool.getLocalNetworkInterface();
+      for (const intf of this.interfaces) {
+        if (!intf.name || !intf.mac_address) continue;
+        // listen on icmp6 neighbor-advertisement which is not sent from firewalla
+        const tcpdumpSpawn = spawn('sudo', ['tcpdump', '-i', intf.name, '-en', `!(ether src ${intf.mac_address}) && icmp6 && ip6[40] == 136`]);
+        const pid = tcpdumpSpawn.pid;
+        log.info("TCPDump icmp6 started with PID: ", pid);
+        const reader = readline.createInterface({
+          input: tcpdumpSpawn.stdout
+        });
+        reader.on('line', (line) => {
+          this.processNeighborAdvertisement(line);
+        });
+        tcpdumpSpawn.on('close', (code) => {
+          log.info("TCPDump icmp6 exited with code: ", code);
+        })
       }
       if (!this.interfaces) {
         setTimeout(() => {

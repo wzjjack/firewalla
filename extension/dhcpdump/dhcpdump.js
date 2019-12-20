@@ -17,16 +17,8 @@
 let instance = null;
 let log = null;
 
-let fs = require('fs');
-let util = require('util');
-let jsonfile = require('jsonfile');
-
-let f = require('../../net2/Firewalla.js');
-let fHome = f.getFirewallaHome();
+const util = require('util');
 const networkTool = require('../../net2/NetworkTool')();
-let userID = f.getUserID();
-let dhcpdumpSpawn = null;
-let pid = null;
 
 module.exports = class {
   constructor(loglevel) {
@@ -152,13 +144,13 @@ OPTION:  12 ( 12) Host name                 Great-Room-3
     }
   }
 
-  rawStart(callback) {
+  async rawStart(callback) {
     callback = callback || function () { }
     const interfaces = await networkTool.getLocalNetworkInterface();
-    for (const interface of interfaces) {
-      if(!interface.name) continue;
+    for (const intf of interfaces) {
+      if(!intf.name) continue;
       let spawn = require('child_process').spawn;
-      let dhcpdumpSpawn = spawn('sudo', ['dhcpdump', '-i', interface.name]);
+      let dhcpdumpSpawn = spawn('sudo', ['dhcpdump', '-i', intf.name]);
       let pid = dhcpdumpSpawn.pid;
       let StringDecoder = require('string_decoder').StringDecoder;
       let decoder = new StringDecoder('utf8');
