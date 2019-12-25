@@ -116,6 +116,10 @@ class NetworkTool {
 
   // same as listInterfaces() but filters out non-local interfaces
   async getLocalNetworkInterface() {
+    //todo
+    //get gold networkInterface from firerouter api
+    //simple mode br0
+    //router mode enabled wans
     let intfs = fConfig.discovery && fConfig.discovery.networkInterfaces;
     if (!intfs) {
       return null;
