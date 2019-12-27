@@ -421,7 +421,7 @@ module.exports = class DNSMASQ {
     options = options || {};
     const category = options.category;
     const categoryBlockDomainsFile = FILTER_DIR + `/${category}_block.conf`;
-    const categoryBlcokMacSetFile = FILTER_DIR + `/${category}_mac_set.conf`;
+    const categoryBlockMacSetFile = FILTER_DIR + `/${category}_mac_set.conf`;
     try {
       let entry = "", macSetEntry = "";
       for (const domain of domains) {
@@ -435,7 +435,7 @@ module.exports = class DNSMASQ {
         macSetEntry = `mac-address-tag=%${systemLevelMac}$${category}_block\n`;
       }
       await fs.writeFileAsync(categoryBlockDomainsFile, entry);
-      await fs.appendFileAsync(categoryBlcokMacSetFile, macSetEntry);
+      await fs.appendFileAsync(categoryBlockMacSetFile, macSetEntry);
     } catch (err) {
       log.error("Failed to add category mact set entry into file:", err);
     } finally {
@@ -452,7 +452,7 @@ module.exports = class DNSMASQ {
     this.workingInProgress = true;
     options = options || {};
     const category = options.category;
-    const categoryBlcokMacSetFile = FILTER_DIR + `/${category}_mac_set.conf`;
+    const categoryBlockMacSetFile = FILTER_DIR + `/${category}_mac_set.conf`;
     let macSetEntry = [];
     if (options.scope && options.scope.length > 0) {
       for (const mac of options.scope) {
@@ -462,11 +462,11 @@ module.exports = class DNSMASQ {
       macSetEntry.push(`mac-address-tag=%${systemLevelMac}$${category}_block`)
     }
     try {
-      let data = await fs.readFileAsync(categoryBlcokMacSetFile, 'utf8');
+      let data = await fs.readFileAsync(categoryBlockMacSetFile, 'utf8');
       let newData = data.split("\n").filter((line) => {
         return macSetEntry.indexOf(line) == -1
       }).join("\n");
-      await fs.writeFileAsync(categoryBlcokMacSetFile, newData);
+      await fs.writeFileAsync(categoryBlockMacSetFile, newData);
     } catch (err) {
       if (err.code != "ENOENT") {
         log.error("Failed to update category mact set entry file:", err);
@@ -486,7 +486,7 @@ module.exports = class DNSMASQ {
     options = options || {};
     const category = options.category;
     const categoryBlockDomainsFile = FILTER_DIR + `/${category}_block.conf`;
-    const categoryBlcokMacSetFile = FILTER_DIR + `/${category}_mac_set.conf`;
+    const categoryBlockMacSetFile = FILTER_DIR + `/${category}_mac_set.conf`;
     let entry = "";
     for (const domain of domains) {
       entry += `address=/${domain}/${BLACK_HOLE_IP}$${category}_block\n`;
@@ -494,7 +494,7 @@ module.exports = class DNSMASQ {
     try {
       await fs.writeFileAsync(categoryBlockDomainsFile, entry);
       //check dnsmasq need restart or not
-      const data = await fs.readFileAsync(categoryBlcokMacSetFile, 'utf8');
+      const data = await fs.readFileAsync(categoryBlockMacSetFile, 'utf8');
       if (data.indexOf(`$${category}_block`) > -1) this.restartDnsmasq();
     } catch (err) {
       if (err.code != 'ENOENT') {
