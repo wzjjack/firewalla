@@ -473,6 +473,10 @@ class netBot extends ControllerBot {
         }
       }
 
+      if(data.gid) {
+        data["thread-id"] = data.gid;
+      }
+
       // check if device name should be included, sometimes it is helpful if multiple devices are bound to one app
       if (alarm["p.monkey"] && alarm["p.monkey"] == 1) {
         notifMsg.title = `[Monkey] ${notifMsg.title}`;
@@ -2231,6 +2235,16 @@ class netBot extends ControllerBot {
         })
         break
 
+      case "alarm:ignoreAll":
+        (async () => {
+          await am2.ignoreAllAlarm();
+          this.simpleTxData(msg, {}, null, callback)
+        })().catch((err) => {
+          log.error("Failed to ignoreAll alarm:", err)
+          this.simpleTxData(msg, {}, err, callback)
+        })
+        break;
+        
       case "alarm:report":
         (async () => {
           await am2.reportBug(value.alarmID, value.feedback)
@@ -2253,6 +2267,26 @@ class netBot extends ControllerBot {
         }
         break;
 
+      case "alarm:deleteActiveAll":
+        (async () => {
+          await am2.deleteActiveAll();
+          this.simpleTxData(msg, {}, null, callback)
+        })().catch((err) => {
+          log.error("Failed to deleteActiveAll alarm:", err)
+          this.simpleTxData(msg, {}, err, callback)
+        })
+        break;
+        
+      case "alarm:deleteArchivedAll":
+        (async () => {
+          await am2.deleteArchivedAll();
+          this.simpleTxData(msg, {}, null, callback)
+        })().catch((err) => {
+          log.error("Failed to deleteArchivedAll alarm:", err)
+          this.simpleTxData(msg, {}, err, callback)
+        })
+        break;
+        
       case "policy:create": {
         let policy
         try {
@@ -3242,6 +3276,15 @@ class netBot extends ControllerBot {
               const altIpAddress = intf.ipAddress;
               const altSubnetMask = intf.subnetMask;
               const altIpSubnet = iptool.subnet(altIpAddress, altSubnetMask);
+              const mySubnet = sysManager.mySubnet();
+              const currIpSubnet = iptool.cidrSubnet(mySubnet);
+              const altIp = iptool.subnet(altIpAddress, altSubnetMask);
+              if (!currIpSubnet.contains(altIp.networkAddress)
+                || currIpSubnet.subnetMaskLength !== altIp.subnetMaskLength
+                || !currIpSubnet.contains(intf.gateway)) {
+                log.info("Change ip or gateway is not in current subnet, ignore")
+                throw new Error("Invalid IP address or gateway");
+              }
               updatedAltConfig.ip = altIpAddress + "/" + altIpSubnet.subnetMaskLength; // ip format is <ip_address>/<subnet_mask_length>
               const mergedAlternativeInterface = Object.assign({}, currentAlternativeInterface, updatedAltConfig);
               await fc.updateUserConfig({ alternativeInterface: mergedAlternativeInterface });
