@@ -69,11 +69,10 @@ const instances = {}; // this instances cache can ensure that Host object for ea
 const envCreatedMap = {};
 
 class Host {
-  constructor(obj, mgr, callback) {
+  constructor(obj) {
     if (!instances[obj.mac]) {
       this.callbacks = {};
       this.o = obj;
-      this.mgr = mgr;
       if (this.o.ipv4) {
         this.o.ipv4Addr = this.o.ipv4;
       }
@@ -98,7 +97,7 @@ class Host {
 
         this.predictHostNameUsingUserAgent();
 
-        this.loadPolicy(callback);
+        this.loadPolicy();
 
         Host.ensureCreateDeviceIpset(this.o.mac).then(() => {
           this.subscribe(this.o.mac, "Device:Updated");
@@ -536,6 +535,30 @@ class Host {
     return this.spoofing;
   }
 
+  async qos(state) {
+    if (state === true) {
+      await exec(`sudo ipset del -! ${ipset.CONSTANTS.IPSET_QOS_OFF_MAC} ${this.o.mac}`).catch((err) => {
+        log.error(`Failed to remove ${this.o.mac} from ${ipset.CONSTANTS.IPSET_QOS_OFF_MAC}`, err.message);
+      });
+      await exec(`sudo ipset del -! ${ipset.CONSTANTS.IPSET_QOS_OFF} ${Host.getIpSetName(this.o.mac, 4)}`).catch((err) => {
+        log.error(`Failed to remove ${Host.getIpSetName(this.o.mac, 4)} from ${ipset.CONSTANTS.IPSET_ACL_OFF}`, err.message);
+      });
+      await exec(`sudo ipset del -! ${ipset.CONSTANTS.IPSET_QOS_OFF} ${Host.getIpSetName(this.o.mac, 6)}`).catch((err) => {
+        log.error(`Failed to remove ${Host.getIpSetName(this.o.mac, 6)} from ${ipset.CONSTANTS.IPSET_ACL_OFF}`, err.message);
+      });
+    } else {
+      await exec(`sudo ipset add -! ${ipset.CONSTANTS.IPSET_QOS_OFF_MAC} ${this.o.mac}`).catch((err) => {
+        log.error(`Failed to add ${this.o.mac} to ${ipset.CONSTANTS.IPSET_QOS_OFF_MAC}`, err);
+      });
+      await exec(`sudo ipset add -! ${ipset.CONSTANTS.IPSET_QOS_OFF} ${Host.getIpSetName(this.o.mac, 4)}`).catch((err) => {
+        log.error(`Failed to add ${Host.getIpSetName(this.o.mac, 4)} to ${ipset.CONSTANTS.IPSET_QOS_OFF}`, err.message);
+      });
+      await exec(`sudo ipset add -! ${ipset.CONSTANTS.IPSET_QOS_OFF} ${Host.getIpSetName(this.o.mac, 6)}`).catch((err) => {
+        log.error(`Failed to add ${Host.getIpSetName(this.o.mac, 6)} to ${ipset.CONSTANTS.IPSET_QOS_OFF}`, err.message);
+      });
+    }
+  }
+
   async acl(state) {
     if (state === true) {
       await exec(`sudo ipset del -! ${ipset.CONSTANTS.IPSET_ACL_OFF_MAC} ${this.o.mac}`).catch((err) => {
@@ -802,12 +825,7 @@ class Host {
     await this.loadPolicyAsync()
     log.debug("HostPolicy:Changed", JSON.stringify(this.policy));
     let policy = JSON.parse(JSON.stringify(this.policy));
-    // check for global
-    /* no need to do this now, if global monitoring is turned off, mock bitbridge will be used
-    if (this.mgr.policy.monitor != null && this.mgr.policy.monitor == false) {
-      policy.monitor = false;
-    }
-    */
+
     let PolicyManager = require('./PolicyManager.js');
     let policyManager = new PolicyManager('info');
 
