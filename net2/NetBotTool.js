@@ -273,24 +273,26 @@ class NetBotTool {
     // 00:03 - 00:18  duration 15
     // shoud dedup to 00:00 - 00:18 duration 18
     for (const type in allFlows) {
-      for (let i = allFlows[type].length - 1; i > 0; i--) {
-        const flow = allFlows[type][i];
-        const beforeFlow = allFlows[type][i - 1];
-        if (beforeFlow.ts + beforeFlow.duration <= flow.ts) {
-          continue;
-        } else if (beforeFlow.ts + beforeFlow.duration > flow.ts + flow.duration) {
-          flow.download += beforeFlow.download;
-          flow.upload += beforeFlow.upload;
-          flow.ts = beforeFlow.ts;
-          allFlows[type].splice(i - 1, 1);
-          i++;
-        } else if (beforeFlow.ts + beforeFlow.duration <= flow.ts + flow.duration) {
-          flow.download += beforeFlow.download;
-          flow.upload += beforeFlow.upload;
-          flow.duration = flow.ts + flow.duration - beforeFlow.ts;
-          flow.ts = beforeFlow.ts;
-          allFlows[type].splice(i - 1, 1);
-          i++;
+      if (allFlows[type] && allFlows[type].length > 2) {
+        for (let i = allFlows[type].length - 1; i > 0; i--) {
+          const flow = allFlows[type][i];
+          const beforeFlow = allFlows[type][i - 1];
+          if (beforeFlow.ts + beforeFlow.duration <= flow.ts) {
+            continue;
+          } else if (beforeFlow.ts + beforeFlow.duration > flow.ts + flow.duration) {
+            flow.download += beforeFlow.download;
+            flow.upload += beforeFlow.upload;
+            flow.ts = beforeFlow.ts;
+            allFlows[type].splice(i - 1, 1);
+            i++;
+          } else if (beforeFlow.ts + beforeFlow.duration <= flow.ts + flow.duration) {
+            flow.download += beforeFlow.download;
+            flow.upload += beforeFlow.upload;
+            flow.duration = flow.ts + flow.duration - beforeFlow.ts;
+            flow.ts = beforeFlow.ts;
+            allFlows[type].splice(i - 1, 1);
+            i++;
+          }
         }
       }
     }
