@@ -33,12 +33,12 @@ const hostManager = new HostManager();
 
 let instance = null;
 
-function toInt(n){ return Math.floor(Number(n)); }
+function toInt(n) { return Math.floor(Number(n)); }
 
 
 class NetBotTool {
   constructor() {
-    if(!instance) {
+    if (!instance) {
       instance = this;
     }
     return instance;
@@ -180,7 +180,7 @@ class NetBotTool {
       allMacs = hostManager.getTagMacs(_.toNumber(options.tag));
       log.info(`prepareDetailedFlows ${dimension} tag: ${options.tag}, ${allMacs}`);
     } else if (options.mac) {
-      allMacs = [ options.mac ]
+      allMacs = [options.mac]
     } else {
       allMacs = hostManager.getActiveMACs()
     }
@@ -198,7 +198,7 @@ class NetBotTool {
 
       for (const mac of allMacs) {
         const typeFlows = await typeFlowTool.getTypeFlow(mac, type, options)
-        allFlows[type].push(... typeFlows)
+        allFlows[type].push(...typeFlows)
       }
 
       allFlows[type] = allFlows[type]
@@ -226,7 +226,7 @@ class NetBotTool {
 
     let sumFlowKey = null
 
-    if(options.queryall && target) {
+    if (options.queryall && target) {
       sumFlowKey = await flowAggrTool.getLastSumFlow(target, trafficDirection);
       const ts = this._getTimestamps(sumFlowKey);
       if (ts) {
@@ -254,11 +254,11 @@ class NetBotTool {
 
   // "sumflow:8C:29:37:BF:4A:86:upload:1505073000:1505159400"
   _getTimestamps(sumFlowKey) {
-    if(!sumFlowKey) return null
+    if (!sumFlowKey) return null
 
     const pattern = /:([^:]*):([^:]*)$/
     const result = sumFlowKey.match(pattern)
-    if(!result) return null
+    if (!result) return null
 
     return {
       begin: toInt(result[1]),
@@ -272,23 +272,23 @@ class NetBotTool {
     // 00:03 - 00:18  duration 15
     // shoud dedup to 00:00 - 00:18 duration 18
     for (const type in allFlows) {
-      allFlows[type].sort((a, b) => {
-        return a.ts - b.ts;
-      });
       for (let i = 0; i < allFlows[type].length - 1; i++) {
         const flow = allFlows[type][i];
         const nextFlow = allFlows[type][i + 1];
-        if (flow.ts + flow.duration <= nextFlow.ts) {
+        if (nextFlow.ts + nextFlow.duration <= flow.ts) {
           continue;
-        } else if (flow.ts + flow.duration > nextFlow.ts + nextFlow.duration) {
+        } else if (nextFlow.ts + nextFlow.duration > flow.ts + flow.duration) {
           flow.download += nextFlow.download;
           flow.upload += nextFlow.upload;
+          flow.ts = nextFlow.ts;
+          flow.duration = nextFlow.duration;
           allFlows[type].splice(i + 1, 1);
           i--;
-        } else if (flow.ts + flow.duration <= nextFlow.ts + nextFlow.duration) {
+        } else if (nextFlow.ts + nextFlow.duration <= flow.ts + flow.duration) {
           flow.download += nextFlow.download;
           flow.upload += nextFlow.upload;
-          flow.duration = nextFlow.ts + nextFlow.duration - flow.ts;
+          flow.ts = nextFlow.ts;
+          flow.duration = flow.ts + flow.duration - nextFlow.ts;
           allFlows[type].splice(i + 1, 1);
           i--;
         }
