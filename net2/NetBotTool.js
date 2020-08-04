@@ -275,7 +275,7 @@ class NetBotTool {
       for (let i = 0; i < allFlows[type].length - 1; i++) {
         const flow = allFlows[type][i];
         const nextFlow = allFlows[type][i + 1];
-        if (nextFlow.ts + nextFlow.duration <= flow.ts) {
+        if (nextFlow.ts + nextFlow.duration < flow.ts) {
           continue;
         } else if (nextFlow.ts + nextFlow.duration > flow.ts + flow.duration) {
           flow.download += nextFlow.download;
@@ -287,8 +287,8 @@ class NetBotTool {
         } else if (nextFlow.ts + nextFlow.duration <= flow.ts + flow.duration) {
           flow.download += nextFlow.download;
           flow.upload += nextFlow.upload;
-          flow.ts = nextFlow.ts;
           flow.duration = flow.ts + flow.duration - nextFlow.ts;
+          flow.ts = nextFlow.ts;
           allFlows[type].splice(i + 1, 1);
           i--;
         }
