@@ -204,9 +204,32 @@ class NetBotTool {
       allFlows[type] = allFlows[type]
         .filter((f) => f.duration >= 5) // ignore activities less than 5 seconds
         .sort((a, b) => {
-          return b.ts - a.ts;
+          return a.ts - b.ts;
         });
-
+      
+      // dedup duration
+      // 00:00 - 00:15  duration 15
+      // 00:03 - 00:18  duration 15
+      // shoud dedup to 00:00 - 00:18 duration 18
+      for (let i = 0; i < allFlows[type].length - 1; i++) {
+        const flow = allFlows[type][i];
+        const nextFlow = allFlows[type][i + 1];
+        if (flow.ts + flow.duration <= nextFlow.ts) {
+          continue;
+        } else if (flow.ts + flow.duration > nextFlow.ts + nextFlow.duration) {
+          flow.download += nextFlow.download;
+          flow.upload += nextFlow.upload;
+          allFlows[type].splice(i + 1, 1);
+          i--;
+        } else if (flow.ts + flow.duration <= nextFlow.ts + nextFlow.duration) {
+          flow.download += nextFlow.download;
+          flow.upload += nextFlow.upload;
+          flow.duration = nextFlow.ts + nextFlow.duration - flow.ts;
+          allFlows[type].splice(i + 1, 1);
+          i--;
+        }
+      }
+      allFlows[type].reverse();
       if (!allFlows[type].length) delete allFlows[type]
     }
 
