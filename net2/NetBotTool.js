@@ -144,7 +144,7 @@ class NetBotTool {
     } else {
       flows = await flowAggrTool.getCleanedAppActivity(begin, end, options)
     }
-
+    this._dedupActivityDuration(flows);
     if (flows) {
       json.flows[key] = flows
     }
@@ -204,35 +204,11 @@ class NetBotTool {
       allFlows[type] = allFlows[type]
         .filter((f) => f.duration >= 5) // ignore activities less than 5 seconds
         .sort((a, b) => {
-          return a.ts - b.ts;
+          return b.ts - a.ts;
         });
-      
-      // dedup duration
-      // 00:00 - 00:15  duration 15
-      // 00:03 - 00:18  duration 15
-      // shoud dedup to 00:00 - 00:18 duration 18
-      for (let i = 0; i < allFlows[type].length - 1; i++) {
-        const flow = allFlows[type][i];
-        const nextFlow = allFlows[type][i + 1];
-        if (flow.ts + flow.duration <= nextFlow.ts) {
-          continue;
-        } else if (flow.ts + flow.duration > nextFlow.ts + nextFlow.duration) {
-          flow.download += nextFlow.download;
-          flow.upload += nextFlow.upload;
-          allFlows[type].splice(i + 1, 1);
-          i--;
-        } else if (flow.ts + flow.duration <= nextFlow.ts + nextFlow.duration) {
-          flow.download += nextFlow.download;
-          flow.upload += nextFlow.upload;
-          flow.duration = nextFlow.ts + nextFlow.duration - flow.ts;
-          allFlows[type].splice(i + 1, 1);
-          i--;
-        }
-      }
-      allFlows[type].reverse();
       if (!allFlows[type].length) delete allFlows[type]
     }
-
+    this._dedupActivityDuration(allFlows);
     json.flows[key] = allFlows
     return allFlows
   }
@@ -287,6 +263,36 @@ class NetBotTool {
     return {
       begin: toInt(result[1]),
       end: toInt(result[2])
+    }
+  }
+
+  _dedupActivityDuration(allFlows) {
+    if(!allFlows)return;
+    // dedup duration
+    // 00:00 - 00:15  duration 15
+    // 00:03 - 00:18  duration 15
+    // shoud dedup to 00:00 - 00:18 duration 18
+    for (const type in allFlows) {
+      for (let i = allFlows[type].length - 1; i > 0; i--) {
+        const flow = allFlows[type][i];
+        const beforeFlow = allFlows[type][i - 1];
+        if (beforeFlow.ts + beforeFlow.duration <= flow.ts) {
+          continue;
+        } else if (beforeFlow.ts + beforeFlow.duration > flow.ts + flow.duration) {
+          flow.download += beforeFlow.download;
+          flow.upload += beforeFlow.upload;
+          flow.ts = beforeFlow.ts;
+          allFlows[type].splice(i - 1, 1);
+          i++;
+        } else if (beforeFlow.ts + beforeFlow.duration <= flow.ts + flow.duration) {
+          flow.download += beforeFlow.download;
+          flow.upload += beforeFlow.upload;
+          flow.duration = flow.ts + flow.duration - beforeFlow.ts;
+          flow.ts = beforeFlow.ts;
+          allFlows[type].splice(i - 1, 1);
+          i++;
+        }
+      }
     }
   }
 }
