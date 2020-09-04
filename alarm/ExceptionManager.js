@@ -358,7 +358,7 @@ module.exports = class {
       const exception = exceptions[index];
       if (!_.isEmpty(exception['p.tag.ids']) && exception['p.tag.ids'].includes(tag)) {
         if (exception['p.tag.ids'].length <= 1) {
-          await this.deleteException(exception); 
+          await this.deleteException(exception.eid); 
         } else {
           let reducedTag = _.without(exception['p.tag.ids'], tag);
           exception['p.tag.ids'] = reducedTag;
