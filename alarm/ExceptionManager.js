@@ -124,7 +124,7 @@ module.exports = class {
 
         results = results.filter((x) => x != null) // ignore any exception which doesn't exist
 
-        let rr = results.map((r) => Object.assign(Object.create(Exception.prototype), r))
+        let rr = results.map((r) => new Exception(r));
 
         // recent first
         rr.sort((a, b) => {
