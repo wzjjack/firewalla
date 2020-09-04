@@ -355,7 +355,7 @@ module.exports = class {
     let exceptions = await this.loadExceptionsAsync();
     for (let index = 0; index < exceptions.length; index++) {
       const exception = exceptions[index];
-      if (!_.isEmpty(exception['p.tag.ids']) && exception['p.tag.ids'].inclues(tag)) {
+      if (!_.isEmpty(exception['p.tag.ids']) && exception['p.tag.ids'].includes(tag)) {
         if (exception['p.tag.ids'].length <= 1) {
           await this.deleteException(exception); 
         } else {
