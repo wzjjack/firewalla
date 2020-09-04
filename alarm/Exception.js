@@ -48,7 +48,7 @@ module.exports = class {
     // FIXME: ignore any rules not begin with prefix "p"
     if (raw && raw['p.tag.ids'] && isJsonString('p.tag.ids')) {
       try {
-        raw['p.tag.ids'] = JSON.parse(raw['p.tag.ids']);
+        raw['p.tag.ids'] = JSON.parse(raw['p.tag.ids']).map(Number);
       } catch (e) {
         log.warn("Failed to parse exception p.tag.ids string:", raw['p.tag.ids']);
       }

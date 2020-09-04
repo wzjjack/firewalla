@@ -353,6 +353,7 @@ module.exports = class {
   async deleteTagRelatedExceptions(tag) {
     // remove exceptions
     let exceptions = await this.loadExceptionsAsync();
+    tag = Number(tag);
     for (let index = 0; index < exceptions.length; index++) {
       const exception = exceptions[index];
       if (!_.isEmpty(exception['p.tag.ids']) && exception['p.tag.ids'].includes(tag)) {
