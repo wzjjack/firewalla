@@ -46,7 +46,7 @@ function isJsonString(str){
 module.exports = class {
   constructor(raw) {
     // FIXME: ignore any rules not begin with prefix "p"
-    if (raw && raw['p.tag.ids'] && isJsonString('p.tag.ids')) {
+    if (raw && raw['p.tag.ids'] && isJsonString(raw['p.tag.ids'])) {
       try {
         raw['p.tag.ids'] = JSON.parse(raw['p.tag.ids']).map(Number);
       } catch (e) {
