@@ -2229,37 +2229,20 @@ class netBot extends ControllerBot {
       this.hostManager.last12MonthsStatsForInit(jsonobj, 'tag:' + target)
     ])
 
-    if (!jsonobj.flows['appDetails']) { // fallback to old way
-      await netBotTool.prepareDetailedAppFlows(jsonobj, options)
-      await this.validateFlowAppIntel(jsonobj)
-    }
-
-    if (!jsonobj.flows['categoryDetails']) { // fallback to old model
-      await netBotTool.prepareDetailedCategoryFlows(jsonobj, options)
-      await this.validateFlowCategoryIntel(jsonobj)
-    }
-
-    return jsonobj;
-  }
-
-  async systemFlowHandler(msg) {
-    log.info("Getting flow info of the entire network");
-
-    let begin = msg.data && msg.data.begin;
-    //let end = msg.data && msg.data.end;
-    let end = begin && (begin + 3600);
-
-    if (!begin || !end) {
-      throw new Error("Require begin and error when calling systemFlowHandler");
-    }
-
-    log.info("FROM: ", new Date(begin * 1000).toLocaleTimeString());
-    log.info("TO: ", new Date(end * 1000).toLocaleTimeString());
-
-    let jsonobj = {};
-    let options = {
-      begin: begin,
-      end: end
+    if (target != '0.0.0.0') {
+      const requiredPromises = [
+        this.hostManager.yesterdayStatsForInit(jsonobj, target),
+        this.hostManager.last60MinStatsForInit(jsonobj, target),
+        this.hostManager.last30daysStatsForInit(jsonobj, target),
+        this.hostManager.newLast24StatsForInit(jsonobj, target),
+        this.hostManager.last12MonthsStatsForInit(jsonobj, target)
+      ];
+      const platformSpecificStats = platform.getStatsSpecs();
+      jsonobj.stats = {};
+      for (const statSetting of platformSpecificStats) {
+        requiredPromises.push(this.hostManager.getStat(jsonobj, statSetting, target));
+      }
+      await Promise.all(requiredPromises)
     }
 
     await Promise.all([

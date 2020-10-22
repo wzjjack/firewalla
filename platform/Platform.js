@@ -189,6 +189,13 @@ class Platform {
   async onVPNPortProtocolChanged() {
     log.info("VPN Port Protocol is changed");
   }
+
+  async applyProfile() {
+    log.info("NO need to apply profile");
+  }
+  getStatsSpecs(){
+    return [];
+  }
 }
 
 module.exports = Platform;
