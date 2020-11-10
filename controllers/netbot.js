@@ -2093,6 +2093,13 @@ class netBot extends ControllerBot {
         });
         break;
       }
+      case "getFlexibleStats": {
+        (async () => {
+          const { granularities, hits, stat, offset, target } = value;
+          
+        });
+        break;
+      }
       default:
         this.simpleTxData(msg, null, new Error("unsupported action"), callback);
     }
