@@ -81,15 +81,20 @@ class DomainBlock {
   async applyBlock(domain, options) {
     const blockSet = options.blockSet || "block_domain_set";
     const addresses = await domainIPTool.getMappedIPAddresses(domain, options);
+    const action = options.action || 'block';
     if (addresses) {
-      const ipLevelBlockAddrs = [];
-      for (const addr of addresses) {
-        try {
-          const ipBlockInfo = await blockManager.updateIpBlockInfo(addr, domain, 'block', blockSet);
-          if (ipBlockInfo.blockLevel == 'ip') {
-            ipLevelBlockAddrs.push(addr);
-          }
-        } catch (err) { }
+      let ipLevelBlockAddrs = [];
+      if (action == 'allow') { // should allow all ips related to the domain
+        ipLevelBlockAddrs = addresses;
+      } else {
+        for (const addr of addresses) {
+          try {
+            const ipBlockInfo = await blockManager.updateIpBlockInfo(addr, domain, 'block', blockSet);
+            if (ipBlockInfo.blockLevel == 'ip') {
+              ipLevelBlockAddrs.push(addr);
+            }
+          } catch (err) { }
+        }
       }
       await Block.batchBlock(ipLevelBlockAddrs, blockSet).catch((err) => {
         log.error(`Failed to batch block domain ${domain} in ${blockSet}`, err.message);

@@ -1179,14 +1179,16 @@ class PolicyManager2 {
           await ipset.create(remoteSet6, "hash:ip", false);
           await domainBlock.blockDomain(target, {
             exactMatch: policy.domainExactMatch,
-            blockSet: Block.getDstSet(pid)
+            blockSet: Block.getDstSet(pid),
+            action: action
           });
         } else {
           if (["allow", "block"].includes(action)) {
             const set = (action === "allow" ? 'allow_' : 'block_') + (direction === "inbound" ? "ib_" : (direction === "outbound" ? "ob_" : "")) + simpleRuleSetMap[type];
             await domainBlock.blockDomain(target, {
               exactMatch: policy.domainExactMatch,
-              blockSet: set
+              blockSet: set,
+              action: action
             });
             return;
           }
