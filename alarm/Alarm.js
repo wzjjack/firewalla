@@ -1125,6 +1125,40 @@ class DualWanAlarm extends Alarm {
     return false;
   }
 }
+class ScreenTimeAlarm extends Alarm {
+  constructor(timestamp, device, info) {
+    super('ALARM_SCREEN_TIME', timestamp, device, info);
+    this['p.showMap'] = false;
+  }
+
+  keysToCompareForDedup() {
+    return [];
+  }
+
+  requiredKeys() {
+    return this.keysToCompareForDedup()
+  }
+
+  getExpirationTime() {
+    return fc.getTimingConfig('alarm.screentime.cooldown') || super.getExpirationTime();
+  }
+
+  localizedNotificationContentArray() {
+    let wan = JSON.parse(this["p.active.wans"]);
+    return [
+      this["p.iface.name"],
+      _.join(wan, ",")
+    ];
+  }
+
+  localizedNotificationContentKey() {
+    return key;
+  }
+
+  isDup() {
+    return false;
+  }
+}
 
 const classMapping = {
   ALARM_PORN: PornAlarm.prototype,
