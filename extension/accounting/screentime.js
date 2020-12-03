@@ -29,10 +29,11 @@ const TAG_PREFIX = "tag:";
 const MAC_PREFIX = "mac:"
 const HostManager = require("../../net2/HostManager.js");
 const hostManager = new HostManager();
+const _ = require('lodash');
 
 /*
 target: av | customize category name | wechat
-type: internet(default) | app | category
+type: app | category | mac
 threshold: 120(mins)
 resetTime: 2*60*60 seconds => 02:00 - next day 02:00, default 0
 scope: ['mac:xx:xx:xx:xx','tag:uid','intf:uuid']
@@ -74,9 +75,10 @@ class ScreenTime {
         }
         log.info(`Registering policy ${policy.pid} for screentime check`)
         const timer = setInterval(() => {
-            this.checkAndRunOnce();
+            this.checkAndRunOnce(policy);
         }, 5 * 60 * 1000) // check every 5 mins
         runningCheckJobs[pid] = { policy, timer }; // register job
+        this.checkAndRunOnce(policy);
     }
 
     async deregisterPolicy(policy) {
@@ -97,34 +99,70 @@ class ScreenTime {
         return true;
     }
     async checkAndRunOnce(policy) {
-        macs = this.getPolicyRelatedMacs(policy);
+        const runningCheckJob = runningCheckJobs[policy.pid];
+        if (!runningCheckJob) {
+            log.warn(`screen time check job ${policy.pid} doesn't register`);
+            return;
+        }
+        const timeFrame = this.generateTimeFrame(policy);
+        if (runningCheckJob.limited && runningCheckJob.endOfResetTime == timeFrame.endOfResetTime) {
+            log.info(`screen time limted alredy reached, pids:${runningCheckJob.pids.join(',')} aid: ${runningCheckJob.aid}`);
+            return;
+        }
+        const macs = this.getPolicyRelatedMacs(policy);
         const count = await this.getMacsUsedTime(macs);
         log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs}`, policy);
-        const { threshold }
+        const { threshold } = policy;
         if (Number(count) > Number(threshold)) {
-            const timeFrame = this.generateTimeFrame(policy);
-            const autoPausePid = await this.createRule(policy);
-            await this.createAlarm(policy, autoPausePid);
+            const pids = await this.createRule(policy, timeFrame);
+            const aid = await this.createAlarm(policy, {
+                pids: pids,
+                timeFrame: timeFrame
+            });
+            runningCheckJob.aid = aid;
+            runningCheckJob.pids = pids;
+            runningCheckJob.endOfResetTime = timeFrame.endOfResetTime;
         }
     }
-    async createRule(policy) {
-        const PM2 = require('../alarm/PolicyManager2.js');
+    async createRule(policy, timeFrame) {
+        const PM2 = require('../../alarm/PolicyManager2.js');
         const pm2 = new PM2();
-        const Policy = require('../alarm/Policy.js');
-        const policyPayloads = this.generatePolicyPayloads(policy);
+        const policyPayloads = this.generatePolicyPayloads(policy, timeFrame);
         try {
-            const { policy } = await pm2.checkAndSaveAsync(new Policy(policyPayload))
-            log.info("Auto pause policy is created successfully, pid:", policy.pid);
-            return policy.pid
+            const result = await pm2.batchPolicy({
+                "create": policyPayloads
+            })
+            const pids = (result.create || []).map(rule => rule.pid);
+            log.info("Auto pause policy is created successfully, pids:", pids);
+            return pids
         } catch (err) {
             log.error("Failed to create policy:", err);
         }
     }
-    generatePolicyPayloads(policy) {
+    async createAlarm(policy, info) {
+        const { timeFrame, pids } = info;
+        const Alarm = require('../../alarm/Alarm.js');
+        const AM2 = require('../../alarm/AlarmManager2.js');
+        const am2 = new AM2();
+        const msg = `${policy.pid} trigger time limit ${policy.threshold}, beginOfResetTime:${timeFrame.beginOfResetTime},endOfResetTime:${timeFrame.endOfResetTime}`
+        const alarm = new Alarm.ScreenTimeAlarm(new Date() / 1000,
+            policy.pid,
+            {
+                "p.pid": policy.pid,
+                "p.scope": policy.scope,
+                "p.threshold": policy.threshold,
+                "p.resettime.begin": timeFrame.beginOfResetTime,
+                "p.resettime.end": timeFrame.endOfResetTime,
+                "p.auto.pause.pids": pids,
+                "p.message": msg
+            });
+        am2.enqueueAlarm(alarm);
+    }
+    generatePolicyPayloads(policy, timeFrame) {
         const basePayload = { //policyPayload same as payload with app policy:create
             action: 'block',
             target: 'TAG',
-            expire: '',
+            expire: timeFrame.expire,
             cronTime: '',
             duration: '',
             tag: [],
@@ -135,18 +173,28 @@ class ScreenTime {
             dnsmasq_only: false,
             autoDeleteWhenExpires: '1',
         }
-        const scope = policy.scope;
+        const policyPayloads = [];
+        const { scope, type, target } = policy;
+        if (['app', 'category'].includes(type)) {
+            basePayload.target = target;
+            basePayload.type = type;
+        }
         if (scope && scope.length > 0) {
             for (const ele of scope) {
+                const policyPayloadCopy = JSON.parse(JSON.stringify(basePayload));
                 if (ele.includes(MAC_PREFIX)) {
-                    policyPayload.target = target.split(MAC_PREFIX)[1];
+                    const mac = ele.split(MAC_PREFIX)[1];
+                    policyPayloadCopy.target = mac;
+                    policyPayloadCopy.scope = [mac]
                 } else if (ele.includes(INTF_PREFIX) || ele.includes(TAG_PREFIX)) {
-                    policyPayload.tag = [target];
+                    policyPayloadCopy.tag = [ele];
                 }
+                policyPayloads.push(policyPayloadCopy);
             }
+        } else { // global level
+            policyPayloads.push(basePayload);
         }
-        policyPayload.expire = info.expire;
-        return policyPayload;
+        return policyPayloads;
     }
     generateTimeFrame(policy) {
         const resetTime = policy.resetTime || 0;

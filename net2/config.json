@@ -554,9 +554,6 @@
     "ACLAuditLogPlugin": {},
     "NewDeviceTagSensor": {},
     "AccountingPlugin": {},
-    "ScreenTimeSensor":{
-      "interval":300
-    },
     "DockerSensor": {},
     "EventSensor": {}
   },
