@@ -24,10 +24,6 @@ const fc = require('../net2/config.js');
 
 const featureName = "screentime";
 const policyKeyName = "screentime";
-const HostTool = require('../net2/HostTool.js');
-const hostTool = new HostTool();
-const HostManager = require("../net2/HostManager.js");
-const hostManager = new HostManager();
 const platform = require('../platform/PlatformLoader.js').getPlatform();
 const INTF_PREFIX = "intf:";
 const TAG_PREFIX = "tag:";
@@ -64,6 +60,8 @@ class ScreenTimeSensor extends Sensor {
     async applyPolicy(host, ip, policy) {
         log.info("Applying device screen time policy:", ip, policy);
         try {
+            const HostManager = require("../net2/HostManager.js");
+            const hostManager = new HostManager();
             let settingKey, allMacs = [];
             if (ip === '0.0.0.0') {
                 settingKey = '0.0.0.0';
