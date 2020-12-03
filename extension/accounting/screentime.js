@@ -137,14 +137,13 @@ class ScreenTime {
         }
         const scope = policy.scope;
         if (scope && scope.length > 0) {
-            for(const ele of scope){
-
+            for (const ele of scope) {
+                if (ele.includes(MAC_PREFIX)) {
+                    policyPayload.target = target.split(MAC_PREFIX)[1];
+                } else if (ele.includes(INTF_PREFIX) || ele.includes(TAG_PREFIX)) {
+                    policyPayload.tag = [target];
+                }
             }
-        }
-        if (target.includes(MAC_PREFIX)) {
-            policyPayload.target = target.split(MAC_PREFIX)[1];
-        } else if (target.includes(INTF_PREFIX) || target.includes(TAG_PREFIX)) {
-            policyPayload.tag = [target];
         }
         policyPayload.expire = info.expire;
         return policyPayload;
