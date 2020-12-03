@@ -1130,33 +1130,8 @@ class ScreenTimeAlarm extends Alarm {
     super('ALARM_SCREEN_TIME', timestamp, device, info);
     this['p.showMap'] = false;
   }
-
   keysToCompareForDedup() {
-    return [];
-  }
-
-  requiredKeys() {
-    return this.keysToCompareForDedup()
-  }
-
-  getExpirationTime() {
-    return fc.getTimingConfig('alarm.screentime.cooldown') || super.getExpirationTime();
-  }
-
-  localizedNotificationContentArray() {
-    let wan = JSON.parse(this["p.active.wans"]);
-    return [
-      this["p.iface.name"],
-      _.join(wan, ",")
-    ];
-  }
-
-  localizedNotificationContentKey() {
-    return key;
-  }
-
-  isDup() {
-    return false;
+    return ['p.screentime.target','p.threshold','p.resettime.begin','p.resettime.end'];
   }
 }
 
@@ -1183,7 +1158,8 @@ const classMapping = {
   ALARM_WEAK_PASSWORD: WeakPasswordAlarm.prototype,
   ALARM_OPENPORT: OpenPortAlarm.prototype,
   ALARM_UPNP: UpnpAlarm.prototype,
-  ALARM_DUAL_WAN: DualWanAlarm.prototype
+  ALARM_DUAL_WAN: DualWanAlarm.prototype,
+  ALARM_SCREEN_TIME: ScreenTimeAlarm.prototype
 }
 
 module.exports = {
@@ -1212,5 +1188,6 @@ module.exports = {
   OpenPortAlarm,
   UpnpAlarm,
   DualWanAlarm,
+  ScreenTimeAlarm,
   mapping: classMapping
 }

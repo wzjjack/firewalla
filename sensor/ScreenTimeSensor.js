@@ -36,6 +36,9 @@ const INTF_PREFIX = "intf:";
 const TAG_PREFIX = "tag:";
 const MAC_PREFIX = "mac:"
 const tracking = require('../extension/accounting/tracking.js');
+const Alarm = require('../alarm/Alarm.js');
+const AM2 = require('../alarm/AlarmManager2.js');
+const am2 = new AM2();
 
 class ScreenTimeSensor extends Sensor {
     constructor() {
@@ -121,11 +124,14 @@ class ScreenTimeSensor extends Sensor {
         if (!this.dependFeatureEnabled()) return;
         if (!fc.isFeatureOn(featureName)) return;
         if (!policy.enable) return;
-        const { threshold, resetTime, allMacs } = policy;
+        const { threshold, allMacs } = policy;
         const count = await this.getMacsUsedTime(allMacs);
+        log.info(`target ${key} screen time: ${count}, threshold: ${threshold}`);
         if (Number(count) > Number(threshold)) {
-            await this.createAlarm();
-            await this.createRule(key, policy);
+            const timeFrame = this.generateTimeFrame(policy);
+            Object.assign(policy, timeFrame);
+            const pid = await this.createRule(key, policy);
+            await this.createAlarm(key, policy, pid);
         }
     }
     // TBD: get app/category used time
@@ -139,20 +145,48 @@ class ScreenTimeSensor extends Sensor {
         }
         return count;
     }
-    async createAlarm() {
-
+    async createAlarm(target, info, pid) {
+        const msg = `${target} trigger time limit ${info.threshold},beginOfResetTime:${info.beginOfResetTime},endOfResetTime:${info.endOfResetTime}`
+        const alarm = new Alarm.ScreenTimeAlarm(new Date() / 1000,
+            target,
+            {
+                "p.screentime.target": target,
+                "p.threshold": info.threshold,
+                "p.resettime.begin": info.beginOfResetTime,
+                "p.resettime.end": info.endOfResetTime,
+                "p.pid": pid,
+                "p.message": msg
+            });
+        am2.enqueueAlarm(alarm);
     }
     async createRule(target, info) {
         const policyPayload = this.generatePolicyPayload(target, info);
         try {
             const { policy } = await pm2.checkAndSaveAsync(new Policy(policyPayload))
             log.info("Auto pause policy is created successfully, pid:", policy.pid);
+            return policy.pid
         } catch (err) {
-            log.error("Failed to create policy:", err)
+            log.error("Failed to create policy:", err);
+        }
+    }
+    generateTimeFrame(info) {
+        const resetTime = info.resetTime || 0;
+        // calculate expire by resetTime(02:00 - next day 02:00) resetTime should be 2*60*60 seconds
+        // default time frame 00:00 - next day 00:00 default resetTime 0
+        const now = new Date();
+        const offset = now.getTimezoneOffset(); // in mins
+        const timeWithTimezoneOffset = now - offset * 60 * 1000;
+        const beginOfDate = Math.floor(timeWithTimezoneOffset / 1000 / 3600 / 24) * 3600 * 24 * 1000;
+        const beginOfDateWithTimezoneOffset = beginOfDate + offset * 60 * 1000;
+        const beginOfResetTime = beginOfDateWithTimezoneOffset + resetTime * 1000;
+        const timeWindow = 24 * 60 * 60; // TBD it can be config, default 24hours
+        const endOfResetTime = beginOfResetTime + timeWindow * 1000;
+        const expire = endOfResetTime / 1000 - now / 1000;
+        return {
+            beginOfResetTime, endOfResetTime, expire
         }
     }
     generatePolicyPayload(target, info) {
-        const resetTime = info.resetTime || 0;
         const policyPayload = { //policyPayload same as payload with app policy:create
             action: 'block',
             target: 'TAG',
@@ -172,17 +206,7 @@ class ScreenTimeSensor extends Sensor {
         } else if (target.includes(INTF_PREFIX) || target.includes(TAG_PREFIX)) {
             policyPayload.tag = [target];
         }
-        // calculate expire by resetTime(02:00 - next day 02:00) resetTime should be 2*60*60 seconds
-        // default time frame 00:00 - next day 00:00 default resetTime 0
-        const now = new Date();
-        const offset = now.getTimezoneOffset(); // in mins
-        const timeWithTimezoneOffset = now - offset * 60 * 1000;
-        const beginOfDate = Math.floor(timeWithTimezoneOffset / 1000 / 3600 / 24) * 3600 * 24 * 1000;
-        const beginOfDateWithTimezoneOffset = beginOfDate + offset * 60 * 1000;
-        const beginOfResetTime = beginOfDateWithTimezoneOffset + resetTime * 1000;
-        const timeWindow = 24 * 60 * 60; // TBD it can be config, default 24hours
-        const endOfResetTime = beginOfResetTime + timeWindow * 1000;
-        policyPayload.expire = endOfResetTime / 1000 - now / 1000;
+        policyPayload.expire = info.expire;
     }
 }
 
