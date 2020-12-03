@@ -29,16 +29,10 @@ const hostTool = new HostTool();
 const HostManager = require("../net2/HostManager.js");
 const hostManager = new HostManager();
 const platform = require('../platform/PlatformLoader.js').getPlatform();
-const Policy = require('../alarm/Policy.js');
-const PM2 = require('../alarm/PolicyManager2.js');
-const pm2 = new PM2();
 const INTF_PREFIX = "intf:";
 const TAG_PREFIX = "tag:";
 const MAC_PREFIX = "mac:"
 const tracking = require('../extension/accounting/tracking.js');
-const Alarm = require('../alarm/Alarm.js');
-const AM2 = require('../alarm/AlarmManager2.js');
-const am2 = new AM2();
 
 class ScreenTimeSensor extends Sensor {
     constructor() {
@@ -148,6 +142,9 @@ class ScreenTimeSensor extends Sensor {
         return count;
     }
     async createAlarm(target, info, pid) {
+        const Alarm = require('../alarm/Alarm.js');
+        const AM2 = require('../alarm/AlarmManager2.js');
+        const am2 = new AM2();
         const msg = `${target} trigger time limit ${info.threshold},beginOfResetTime:${info.beginOfResetTime},endOfResetTime:${info.endOfResetTime}`
         const alarm = new Alarm.ScreenTimeAlarm(new Date() / 1000,
             target,
@@ -162,6 +159,9 @@ class ScreenTimeSensor extends Sensor {
         am2.enqueueAlarm(alarm);
     }
     async createRule(target, info) {
+        const PM2 = require('../alarm/PolicyManager2.js');
+        const pm2 = new PM2();
+        const Policy = require('../alarm/Policy.js');
         const policyPayload = this.generatePolicyPayload(target, info);
         try {
             const { policy } = await pm2.checkAndSaveAsync(new Policy(policyPayload))
@@ -209,6 +209,7 @@ class ScreenTimeSensor extends Sensor {
             policyPayload.tag = [target];
         }
         policyPayload.expire = info.expire;
+        return policyPayload;
     }
 }
 
