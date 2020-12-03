@@ -43,7 +43,6 @@ const am2 = new AM2();
 class ScreenTimeSensor extends Sensor {
     constructor() {
         super();
-        this.screenTimeSettings = {}
     }
     async run() {
         /*
@@ -53,6 +52,7 @@ class ScreenTimeSensor extends Sensor {
             enable
          }
         */
+        this.screenTimeSettings = {}
         extensionManager.registerExtension(policyKeyName, this, {
             applyPolicy: this.applyPolicy
         });
