@@ -37,9 +37,12 @@ class ScreenTimeSensor extends Sensor {
     async run() {
         /*
          screentime:{
-            threshold
-            resetTime
-            enable
+            target: av | customize category name | wechat
+            type: internet(default) | app | category
+            threshold: 120(mins)
+            resetTime: 2*60*60 seconds => 02:00 - next day 02:00, default 0
+            enable: boolean
+            devices: ['mac:xx:xx:xx:xx','tag:uid','intf:uuid']
          }
         */
         this.screenTimeSettings = {}
@@ -64,6 +67,8 @@ class ScreenTimeSensor extends Sensor {
             const hostManager = new HostManager();
             let settingKey, allMacs = [];
             if (ip === '0.0.0.0') {
+                const devices = policy.devices;
+                
                 settingKey = '0.0.0.0';
                 allMacs = hostManager.getActiveMACs();
             } else {
