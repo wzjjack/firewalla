@@ -68,7 +68,6 @@ class ScreenTime {
         }, 5000);
     }
     async registerPolicy(policy) {
-        if (!this.dependFeatureEnabled()) return;
         const pid = policy.pid
         if (runningCheckJobs[pid]) { // already have a running job for this pid
             return;
@@ -99,6 +98,7 @@ class ScreenTime {
         return true;
     }
     async checkAndRunOnce(policy) {
+        if (!this.dependFeatureEnabled()) return;
         const runningCheckJob = runningCheckJobs[policy.pid];
         if (!runningCheckJob) {
             log.warn(`screen time check job ${policy.pid} doesn't register`);
@@ -110,7 +110,7 @@ class ScreenTime {
             return;
         }
         const macs = this.getPolicyRelatedMacs(policy);
-        const count = await this.getMacsUsedTime(macs);
+        const count = await this.getMacsUsedTime(macs, policy);
         log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs}`, policy);
         const { threshold } = policy;
         if (Number(count) > Number(threshold)) {
@@ -119,9 +119,12 @@ class ScreenTime {
                 pids: pids,
                 timeFrame: timeFrame
             });
+            runningCheckJob.limited = true;
             runningCheckJob.aid = aid;
             runningCheckJob.pids = pids;
             runningCheckJob.endOfResetTime = timeFrame.endOfResetTime;
+        } else {
+            runningCheckJob.limited = false;
         }
     }
     async createRule(policy, timeFrame) {
@@ -233,7 +236,7 @@ class ScreenTime {
         return _.uniq(allMacs);
     }
     // TBD: get app/category used time
-    async getMacsUsedTime(macs) {
+    async getMacsUsedTime(macs, policy) {
         if (!macs || macs.length == 0) return 0;
         let count = 0;
         for (const mac of macs) {
