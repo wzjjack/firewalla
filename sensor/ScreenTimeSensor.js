@@ -121,6 +121,7 @@ class ScreenTimeSensor extends Sensor {
         return true;
     }
     async checkAndRunOnce(key, policy) {
+        log.info('ScreenTimeSensor check and runonce', key, policy)
         if (!this.dependFeatureEnabled()) return;
         if (!fc.isFeatureOn(featureName)) return;
         if (!policy.enable) return;
