@@ -95,9 +95,10 @@ class ScreenTimeSensor extends Sensor {
                         break;
                     }
                     case "Host": {
-                        if (host.o && host.o.mac) {
-                            settingKey = `${MAC_PREFIX}${host.o && host.o.mac}`;
-                            allMacs = [settingKey]
+                        const mac = host.o && host.o.mac;
+                        if (mac) {
+                            settingKey = `${MAC_PREFIX}${mac}`;
+                            allMacs = [mac]
                         }
                         break;
                     }
