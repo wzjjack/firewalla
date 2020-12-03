@@ -107,6 +107,8 @@ const INACTIVE_TIME_SPAN = 60 * 60 * 24 * 7;
 
 let instance = null;
 
+const VpnManager = require('../vpn/VpnManager.js');
+
 module.exports = class HostManager {
   constructor() {
     if (!instance) {
@@ -429,24 +431,6 @@ module.exports = class HostManager {
     json.last60 = this.generateStats(downloadStats,uploadStats);
   }
 
-  async last60MinTopTransferForInit(json) {
-    const top = await rclient.hgetallAsync("last60stats")
-    let values = Object.values(top)
-
-    values = values.map((value) => {
-      try {
-        return JSON.parse(value)
-      } catch(err) {
-        return null
-      }
-    })
-
-    values.sort((x, y) => {
-      return x.ts - y.ts
-    })
-
-    json.last60top = values
-  }
 
   async last30daysStatsForInit(json, target) {
     const subKey = target ? ':' + target : ''
@@ -810,6 +794,8 @@ module.exports = class HostManager {
       json.versionUpdate = versionUpdate;
     const customizedCategories = await categoryUpdater.getCustomizedCategories();
     json.customizedCategories = customizedCategories;
+    // add connected vpn client statistics
+    json.vpnCliStatistics = await new VpnManager().getStatistics();
   }
 
   async getRecentFlows(json) {
@@ -944,7 +930,6 @@ module.exports = class HostManager {
           this.last24StatsForInit(json),
           this.newLast24StatsForInit(json),
           this.last60MinStatsForInit(json),
-          //            this.last60MinTopTransferForInit(json),
           this.extensionDataForInit(json),
           this.last30daysStatsForInit(json),
           this.last12MonthsStatsForInit(json),
