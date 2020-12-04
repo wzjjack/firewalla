@@ -22,6 +22,7 @@ const platform = require('../../platform/PlatformLoader.js').getPlatform();
 const sclient = require('../../util/redis_manager.js').getSubscriptionClient();
 const Message = require('../../net2/Message.js');
 const tracking = require('./tracking.js');
+const accounting = require('./accounting.js');
 let instance = null;
 const runningCheckJobs = {};
 const INTF_PREFIX = "intf:";
@@ -109,7 +110,7 @@ class ScreenTime {
             return;
         }
         const macs = this.getPolicyRelatedMacs(policy);
-        const count = await this.getMacsUsedTime(macs, policy);
+        const count = await this.getMacsUsedTime(macs, policy, timeFrame);
         log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs}`, policy);
         const { threshold } = policy;
         if (Number(count) > Number(threshold)) {
@@ -242,12 +243,18 @@ class ScreenTime {
         return _.uniq(allMacs);
     }
     // TBD: get app/category used time
-    async getMacsUsedTime(macs, policy) {
+    async getMacsUsedTime(macs, policy, timeFrame) {
         if (!macs || macs.length == 0) return 0;
+        const { target, type } = policy;
+        const blockInternet = !['app', 'category'].includes(type);
         let count = 0;
         for (const mac of macs) {
             try {
-                count += await tracking.getUsedTime(mac);
+                if (blockInternet) {
+                    count += await tracking.getUsedTime(mac);
+                } else {
+                    count += await accounting.count(mac, target, timeFrame.beginOfResetTime, timeFrame.endOfResetTime);
+                }
             } catch (e) { }
         }
         return count;
