@@ -46,7 +46,7 @@ class ScreenTimeScope extends Intel {
             } else {
                 names.push('System')
             }
-            const msg = `${names.join(',')} has reached the time limit on ${alarm.target || 'Internet'}`;
+            const msg = `${names.join(',')} has reached the time limit on ${alarm['p.target'] || 'Internet'}`;
             Object.assign(alarm, {
                 'p.scope.names': names,
                 'p.message': msg // debug purpose
