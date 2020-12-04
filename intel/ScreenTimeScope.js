@@ -14,8 +14,6 @@
  */
 'use strict';
 
-const _ = require('lodash');
-
 const Intel = require('./Intel.js');
 const tagManager = require('../net2/TagManager.js');
 const sysManager = require('../net2/SysManager.js');
@@ -33,7 +31,7 @@ class ScreenTimeScope extends Intel {
                 for (const ele of alarm['p.scope']) {
                     if (ele.includes(MAC_PREFIX)) {
                         const mac = ele.split(MAC_PREFIX)[1];
-                        const hostInfo = hostTool.getMACEntry(mac);
+                        const hostInfo = await hostTool.getMACEntry(mac);
                         hostInfo && names.push(getPreferredName(hostInfo));
                     } else if (ele.includes(TAG_PREFIX)) {
                         const tagUid = ele.split(TAG_PREFIX)[1];

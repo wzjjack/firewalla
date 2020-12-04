@@ -135,7 +135,7 @@ class ScreenTime {
             const result = await pm2.batchPolicy({
                 "create": policyPayloads
             })
-            const pids = (result.create || []).map(rule => rule.pid);
+            const pids = (result.create || []).filter(rule => rule && rule.pid).map(rule => rule.pid);
             pids.length > 0 && log.info("Auto pause policy is created successfully, pids:", pids);
             return pids
         } catch (err) {
