@@ -112,7 +112,7 @@ class ScreenTime {
         }
         const macs = this.getPolicyRelatedMacs(policy);
         const count = await this.getMacsUsedTime(macs, policy, timeFrame);
-        log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs.join(, )} begin: ${timeFrame.beginOfResetTime} end: ${timeFrame.endOfResetTime}`, policy);
+        log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs.join(',')} begin: ${timeFrame.beginOfResetTime} end: ${timeFrame.endOfResetTime}`, policy);
         const { threshold } = policy;
         if (Number(count) > Number(threshold)) {
             const pids = await this.createRule(policy, timeFrame);
