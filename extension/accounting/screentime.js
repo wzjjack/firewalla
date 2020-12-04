@@ -31,10 +31,10 @@ const _ = require('lodash');
 
 /*
 action: screentime
-target: av | customize category name | wechat
+target: av | customize category name | wechat | default: internet
 type: app | category | mac
 threshold: 120(mins)
-resetTime: 2*60*60 seconds => 02:00 - next day 02:00, default 0
+resetTime: 2*60*60 seconds => 02:00 - next day 02:00, default: 0
 scope: ['mac:xx:xx:xx:xx','tag:uid','intf:uuid']
 */
 
@@ -114,6 +114,7 @@ class ScreenTime {
         const { threshold } = policy;
         if (Number(count) > Number(threshold)) {
             const pids = await this.createRule(policy, timeFrame);
+            if (pids.length == 0) return;
             const aid = await this.createAlarm(policy, {
                 pids: pids,
                 timeFrame: timeFrame
@@ -135,7 +136,7 @@ class ScreenTime {
                 "create": policyPayloads
             })
             const pids = (result.create || []).map(rule => rule.pid);
-            log.info("Auto pause policy is created successfully, pids:", pids);
+            pids.length > 0 && log.info("Auto pause policy is created successfully, pids:", pids);
             return pids
         } catch (err) {
             log.error("Failed to create policy:", err);
@@ -146,9 +147,9 @@ class ScreenTime {
         const Alarm = require('../../alarm/Alarm.js');
         const AM2 = require('../../alarm/AlarmManager2.js');
         const am2 = new AM2();
-        const msg = `${policy.pid} trigger time limit ${policy.threshold}, beginOfResetTime:${timeFrame.beginOfResetTime},endOfResetTime:${timeFrame.endOfResetTime}`
+        log.info(`screen time policy ${policy.pid} trigger time limit ${policy.threshold}, beginOfResetTime:${timeFrame.beginOfResetTime},endOfResetTime:${timeFrame.endOfResetTime}`);
         const alarm = new Alarm.ScreenTimeAlarm(new Date() / 1000,
-            policy.pid,
+            'screetime',
             {
                 "p.pid": policy.pid,
                 "p.scope": policy.scope,
@@ -156,7 +157,8 @@ class ScreenTime {
                 "p.resettime.begin": timeFrame.beginOfResetTime,
                 "p.resettime.end": timeFrame.endOfResetTime,
                 "p.auto.pause.pids": pids,
-                "p.message": msg
+                "p.target": policy.target,
+                "p.type": policy.type
             });
         am2.enqueueAlarm(alarm);
     }
@@ -179,7 +181,8 @@ class ScreenTime {
         }
         const policyPayloads = [];
         const { scope, type, target } = policy;
-        if (['app', 'category'].includes(type)) {
+        const blockInternet = !['app', 'category'].includes(type);
+        if (!blockInternet) {
             basePayload.target = target;
             basePayload.type = type;
         }
@@ -188,8 +191,8 @@ class ScreenTime {
                 const policyPayloadCopy = JSON.parse(JSON.stringify(basePayload));
                 if (ele.includes(MAC_PREFIX)) {
                     const mac = ele.split(MAC_PREFIX)[1];
-                    policyPayloadCopy.target = mac;
-                    policyPayloadCopy.scope = [mac]
+                    blockInternet && (policyPayloadCopy.target = mac);
+                    !blockInternet && (policyPayloadCopy.scope = [mac]);
                 } else if (ele.includes(INTF_PREFIX) || ele.includes(TAG_PREFIX)) {
                     policyPayloadCopy.tag = [ele];
                 }
