@@ -588,7 +588,7 @@ module.exports = class HostManager {
           // filters out rules with inactive devices
           rules = rules.filter(rule => {
             if (_.isEmpty(rule.scope)) return true;
-
+            if (rule.action == 'screentime') return true;
             return rule.scope.some(mac =>
               this.hosts.all.some(host => host.o.mac == mac)
             )
