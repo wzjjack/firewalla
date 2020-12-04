@@ -50,10 +50,11 @@ class AccountingPlugin extends Sensor {
       if(host) {
         const count = await tracking.getUsedTime(mac);
         host.setScreenTime(count);
-        const activeCategories = categoryUpdater.activeCategories;
+        // const customizedCategories = categoryUpdater.customizedCategories;
+        const defaultCategories = ['av','games','social','shopping']; // TBD dynamic categories categoryUpdater.activeCategories
         const { beginTs, endTs } = generateStrictDateTs();
         const accountingInfo = {};
-        for(const category of activeCategories){
+        for(const category of defaultCategories){
           accountingInfo[category] = accounting.count(mac, category, beginTs, endTs)
         }
         //TBD: attach app accounting info

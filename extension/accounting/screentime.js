@@ -112,7 +112,7 @@ class ScreenTime {
         }
         const macs = this.getPolicyRelatedMacs(policy);
         const count = await this.getMacsUsedTime(macs, policy, timeFrame);
-        log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs}`, policy);
+        log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs.join(, )} begin: ${timeFrame.beginOfResetTime} end: ${timeFrame.endOfResetTime}`, policy);
         const { threshold } = policy;
         if (Number(count) > Number(threshold)) {
             const pids = await this.createRule(policy, timeFrame);
@@ -149,7 +149,6 @@ class ScreenTime {
         const Alarm = require('../../alarm/Alarm.js');
         const AM2 = require('../../alarm/AlarmManager2.js');
         const am2 = new AM2();
-        log.info(`screen time policy ${policy.pid} trigger time limit ${policy.threshold}, beginOfResetTime:${timeFrame.beginOfResetTime},endOfResetTime:${timeFrame.endOfResetTime}`);
         const alarm = new Alarm.ScreenTimeAlarm(new Date() / 1000,
             'screetime',
             {
@@ -250,7 +249,7 @@ class ScreenTime {
                 if (blockInternet) {
                     count += await tracking.getUsedTime(mac);
                 } else {
-                    count += await accounting.count(mac, target, timeFrame.beginOfResetTime, timeFrame.endOfResetTime);
+                    count += await accounting.count(mac, target, timeFrame.beginOfResetTime * 1000, timeFrame.endOfResetTime * 1000);
                 }
             } catch (e) { }
         }
