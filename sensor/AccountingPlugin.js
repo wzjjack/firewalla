@@ -55,7 +55,7 @@ class AccountingPlugin extends Sensor {
         const { beginTs, endTs } = generateStrictDateTs();
         const accountingInfo = {};
         for(const category of defaultCategories){
-          accountingInfo[category] = accounting.count(mac, category, beginTs, endTs)
+          accountingInfo[category] = await accounting.count(mac, category, beginTs * 1000, endTs * 1000)
         }
         //TBD: attach app accounting info
         host.setAccounting(accountingInfo);

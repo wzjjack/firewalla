@@ -168,7 +168,7 @@ class ScreenTime {
             action: 'block',
             target: 'TAG',
             expire: timeFrame.expire,
-            activatedTime: timeFrame.now / 1000,
+            activatedTime: timeFrame.now,
             cronTime: '',
             duration: '',
             tag: [],
@@ -238,18 +238,20 @@ class ScreenTime {
         }
         return _.uniq(allMacs);
     }
-    // TBD: get app/category used time
+    // TBD: get app used time
     async getMacsUsedTime(macs, policy, timeFrame) {
         if (!macs || macs.length == 0) return 0;
         const { target, type } = policy;
+        const { beginOfResetTimem, endOfResetTime } = timeFrame;
         const blockInternet = !['app', 'category'].includes(type);
         let count = 0;
         for (const mac of macs) {
             try {
                 if (blockInternet) {
+                    await tracking.aggr(mac);
                     count += await tracking.getUsedTime(mac);
                 } else {
-                    count += await accounting.count(mac, target, timeFrame.beginOfResetTime * 1000, timeFrame.endOfResetTime * 1000);
+                    count += await accounting.count(mac, target, beginOfResetTime * 1000, endOfResetTime * 1000);
                 }
             } catch (e) { }
         }
