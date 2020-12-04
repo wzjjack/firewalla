@@ -1136,6 +1136,9 @@ class ScreenTimeAlarm extends Alarm {
   requiredKeys(){
     return this.keysToCompareForDedup()
   }
+  getExpirationTime() {
+    return fc.getTimingConfig('alarm.alarm_screen_time.cooldown') || super.getExpirationTime();
+  }
 }
 
 const classMapping = {
