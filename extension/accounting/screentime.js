@@ -27,8 +27,6 @@ const runningCheckJobs = {};
 const INTF_PREFIX = "intf:";
 const TAG_PREFIX = "tag:";
 const MAC_PREFIX = "mac:"
-const HostManager = require("../../net2/HostManager.js");
-const hostManager = new HostManager();
 const _ = require('lodash');
 
 /*
@@ -217,6 +215,8 @@ class ScreenTime {
         }
     }
     getPolicyRelatedMacs(policy) {
+        const HostManager = require("../../net2/HostManager.js");
+        const hostManager = new HostManager();
         const { scope } = policy;
         if (!scope) return hostManager.getActiveMACs();
         let allMacs = [];
