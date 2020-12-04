@@ -1133,6 +1133,9 @@ class ScreenTimeAlarm extends Alarm {
   keysToCompareForDedup() {
     return ['p.screentime.target','p.threshold','p.resettime.begin','p.resettime.end'];
   }
+  requiredKeys(){
+    return this.keysToCompareForDedup()
+  }
 }
 
 const classMapping = {
