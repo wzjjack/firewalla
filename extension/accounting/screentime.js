@@ -165,7 +165,7 @@ class ScreenTime {
             action: 'block',
             target: 'TAG',
             expire: timeFrame.expire,
-            activatedTime: timeFrame.now,
+            activatedTime: timeFrame.now / 1000,
             cronTime: '',
             duration: '',
             tag: [],
