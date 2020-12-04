@@ -30,6 +30,7 @@ const MAC_PREFIX = "mac:"
 const _ = require('lodash');
 
 /*
+action: screentime
 target: av | customize category name | wechat
 type: app | category | mac
 threshold: 120(mins)

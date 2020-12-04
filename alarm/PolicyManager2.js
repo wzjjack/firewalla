@@ -968,7 +968,7 @@ class PolicyManager2 {
     } else if (policy.cronTime) {
       // this is a reoccuring policy, use scheduler to manage it
       return scheduler.registerPolicy(policy);
-    } else if(policy.threshold){
+    } else if(policy.action == 'screentime'){
       // this is a screentime policy, use screenTime to manage it
       return screenTime.registerPolicy(policy);
     } else {
@@ -1334,7 +1334,7 @@ class PolicyManager2 {
     if (policy.cronTime) {
       // this is a reoccuring policy, use scheduler to manage it
       return scheduler.deregisterPolicy(policy)
-    } else if(policy.threshold){
+    } else if(policy.action == 'screentime'){
       // this is a screentime policy, use screenTime to manage it
       return screenTime.deregisterPolicy(policy);
     } else {
