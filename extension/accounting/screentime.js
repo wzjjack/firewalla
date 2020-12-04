@@ -23,6 +23,7 @@ const sclient = require('../../util/redis_manager.js').getSubscriptionClient();
 const Message = require('../../net2/Message.js');
 const tracking = require('./tracking.js');
 const accounting = require('./accounting.js');
+const { generateStrictDateTs } = require('../../util/util.js');
 let instance = null;
 const runningCheckJobs = {};
 const INTF_PREFIX = "intf:";
@@ -208,15 +209,11 @@ class ScreenTime {
         const resetTime = policy.resetTime || 0;
         // calculate expire by resetTime(02:00 - next day 02:00) resetTime should be 2*60*60 seconds
         // default time frame 00:00 - next day 00:00 default resetTime 0
-        const now = new Date();
-        const offset = now.getTimezoneOffset(); // in mins
-        const timeWithTimezoneOffset = now - offset * 60 * 1000;
-        const beginOfDate = Math.floor(timeWithTimezoneOffset / 1000 / 3600 / 24) * 3600 * 24 * 1000;
-        const beginOfDateWithTimezoneOffset = beginOfDate + offset * 60 * 1000;
-        const beginOfResetTime = beginOfDateWithTimezoneOffset + resetTime * 1000;
-        const timeWindow = 24 * 60 * 60; // TBD it can be config, default 24hours
-        const endOfResetTime = beginOfResetTime + timeWindow * 1000;
-        const expire = endOfResetTime / 1000 - now / 1000;
+        const now = new Date() / 1000;
+        const { beginTs, endTs } = generateStrictDateTs(now);
+        const beginOfResetTime = beginTs + resetTime;
+        const endOfResetTime = endTs + resetTime;
+        const expire = endOfResetTime - now;
         return {
             beginOfResetTime, endOfResetTime, expire, now
         }

@@ -148,6 +148,18 @@ function isDomainValid(domain) {
   return validDomainRegex.test(domain);
 }
 
+function generateStrictDateTs(ts) {
+  const now = ts ? new Date(ts * 1000) : new Date();
+  const offset = now.getTimezoneOffset(); // in mins
+  const timeWithTimezoneOffset = now / 1000 - offset * 60;
+  const beginOfDate = Math.floor(timeWithTimezoneOffset / 3600 / 24) * 3600 * 24;
+  const beginTs = beginOfDate + offset * 60
+  const endTs = beginTs + 24 * 60 * 60;
+  return {
+    beginTs, endTs
+  }
+}
+
 module.exports = {
   extend,
   getPreferredBName,
@@ -156,5 +168,6 @@ module.exports = {
   argumentsToString,
   isSimilarHost,
   formulateHostname,
-  isDomainValid
+  isDomainValid,
+  generateStrictDateTs
 }
