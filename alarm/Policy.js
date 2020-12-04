@@ -155,7 +155,15 @@ class Policy {
     }
     if (!(policy instanceof Policy))
       policy = new Policy(policy) // leverage the constructor for compatibilities conversion
-
+      
+    if (this.related_screen_time_pid === policy.related_screen_time_pid &&
+      this.target === this.target &&
+      this.type === this.type &&
+      arraysEqual(this.scope, policy.scope) &&
+      arraysEqual(this.tag, policy.tag)
+    ) {
+      return true;
+    }
     if (
       this.type === policy.type &&
       this.target === policy.target &&
