@@ -149,12 +149,12 @@ function isDomainValid(domain) {
 }
 
 function generateStrictDateTs(ts) {
-  const now = ts ? new Date(ts * 1000) : new Date();
+  const now = ts ? new Date(ts) : new Date();
   const offset = now.getTimezoneOffset(); // in mins
-  const timeWithTimezoneOffset = now / 1000 - offset * 60;
-  const beginOfDate = Math.floor(timeWithTimezoneOffset / 3600 / 24) * 3600 * 24;
-  const beginTs = beginOfDate + offset * 60
-  const endTs = beginTs + 24 * 60 * 60;
+  const timeWithTimezoneOffset = now - offset * 60 * 1000;
+  const beginOfDate = Math.floor(timeWithTimezoneOffset / 1000 / 3600 / 24) * 3600 * 24 * 1000;
+  const beginTs = beginOfDate + offset * 60 * 1000;
+  const endTs = beginTs + 24 * 60 * 60 * 1000;
   return {
     beginTs, endTs
   }

@@ -155,8 +155,8 @@ class ScreenTime {
                 "p.pid": policy.pid,
                 "p.scope": policy.scope,
                 "p.threshold": policy.threshold,
-                "p.resettime.begin": timeFrame.beginOfResetTime,
-                "p.resettime.end": timeFrame.endOfResetTime,
+                "p.resettime.begin": timeFrame.beginOfResetTime / 1000,
+                "p.resettime.end": timeFrame.endOfResetTime / 1000,
                 "p.auto.pause.pids": pids,
                 "p.target": policy.target,
                 "p.type": policy.type
@@ -168,7 +168,7 @@ class ScreenTime {
             action: 'block',
             target: 'TAG',
             expire: timeFrame.expire,
-            activatedTime: timeFrame.now,
+            activatedTime: timeFrame.now / 1000,
             cronTime: '',
             duration: '',
             tag: [],
@@ -205,14 +205,14 @@ class ScreenTime {
         return policyPayloads;
     }
     generateTimeFrame(policy) {
-        const resetTime = policy.resetTime || 0;
         // calculate expire by resetTime(02:00 - next day 02:00) resetTime should be 2*60*60 seconds
         // default time frame 00:00 - next day 00:00 default resetTime 0
-        const now = new Date() / 1000;
+        const resetTime = (policy.resetTime || 0) * 1000;
+        const now = new Date();
         const { beginTs, endTs } = generateStrictDateTs(now);
         const beginOfResetTime = beginTs + resetTime;
         const endOfResetTime = endTs + resetTime;
-        const expire = endOfResetTime - now;
+        const expire = (endOfResetTime - now) / 1000;
         return {
             beginOfResetTime, endOfResetTime, expire, now
         }
@@ -247,11 +247,12 @@ class ScreenTime {
         let count = 0;
         for (const mac of macs) {
             try {
+                // maybe get screentime/accounting from host directly if time frame always is 00:00 - next day 00:00
                 if (blockInternet) {
                     await tracking.aggr(mac);
                     count += await tracking.getUsedTime(mac);
                 } else {
-                    count += await accounting.count(mac, target, beginOfResetTime * 1000, endOfResetTime * 1000);
+                    count += await accounting.count(mac, target, beginOfResetTime, endOfResetTime);
                 }
             } catch (e) { }
         }
