@@ -19,10 +19,9 @@
 const log = require('../../net2/logger.js')(__filename)
 const fc = require('../../net2/config.js');
 const platform = require('../../platform/PlatformLoader.js').getPlatform();
-const sclient = require('../../util/redis_manager.js').getSubscriptionClient();
-const Message = require('../../net2/Message.js');
 const tracking = require('./tracking.js');
 const accounting = require('./accounting.js');
+const rclient = require('../../util/redis_manager.js').getRedisClient()
 const { generateStrictDateTs } = require('../../util/util.js');
 let instance = null;
 const runningCheckJobs = {};
@@ -34,7 +33,7 @@ const _ = require('lodash');
 /*
 action: screentime
 target: av | customize category name | wechat | default: internet
-type: app | category | mac
+type: app | category
 threshold: 120(mins)
 resetTime: 2*60*60 seconds => 02:00 - next day 02:00, default: 0
 scope: ['mac:xx:xx:xx:xx','tag:uid','intf:uuid']
@@ -45,28 +44,7 @@ class ScreenTime {
         if (instance == null) {
             instance = this;
         }
-        sclient.on("message", async (channel, message) => {
-            if (channel === Message.MSG_SYS_TIMEZONE_RELOADED) {
-                log.info(`System timezone is reloaded, schedule reload scheduled policies ...`);
-                this.scheduleReload();
-            }
-        });
-        sclient.subscribe(Message.MSG_SYS_TIMEZONE_RELOADED);
         return instance;
-    }
-
-    scheduleReload() {
-        if (this.reloadTask)
-            clearTimeout(this.reloadTask);
-        this.reloadTask = setTimeout(async () => {
-            const policyCopy = Object.keys(runningCheckJobs).map(pid => runningCheckJobs[pid].policy);
-            for (const policy of policyCopy) {
-                if (policy) {
-                    await this.deregisterPolicy(policy);
-                    await this.registerPolicy(policy);
-                }
-            }
-        }, 5000);
     }
     async registerPolicy(policy) {
         const pid = policy.pid
@@ -106,27 +84,23 @@ class ScreenTime {
             return;
         }
         const timeFrame = this.generateTimeFrame(policy);
-        if (runningCheckJob.limited && runningCheckJob.endOfResetTime == timeFrame.endOfResetTime) {
-            log.info(`screen time limted alredy reached, pids:${runningCheckJob.pids.join(',')} aid: ${runningCheckJob.aid}`);
+        if (runningCheckJob.recent_reached_ts == timeFrame.begin) {
+            log.info(`screen time limted alredy reached recently`);
             return;
         }
         const macs = this.getPolicyRelatedMacs(policy);
         const count = await this.getMacsUsedTime(macs, policy, timeFrame);
-        log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs.join(',')} begin: ${timeFrame.begin} end: ${timeFrame.end}`, policy);
+        log.info(`Policy ${policy.pid} screen time: ${count}, macs: ${macs.join(',')} begin: ${timeFrame.begin} end: ${timeFrame.end}`, policy);
         const { threshold } = policy;
         if (Number(count) > Number(threshold)) {
-            const pids = await this.createRule(policy, timeFrame);
-            if (pids.length == 0) return;
-            const aid = await this.createAlarm(policy, {
-                pids: pids,
+            await this.createAlarm(policy, {
                 timeFrame: timeFrame
             });
-            runningCheckJob.limited = true;
-            runningCheckJob.aid = aid;
-            runningCheckJob.pids = pids;
-            runningCheckJob.endOfResetTime = timeFrame.endOfResetTime;
+            await this.createRule(policy, timeFrame);
+            runningCheckJob.recent_reached_ts = timeFrame.begin;
+            await rclient.hsetAsync('policy:' + policy.pid, 'recent_reached_ts', timeFrame.begin);
         } else {
-            runningCheckJob.limited = false;
+            runningCheckJob.recent_reached_ts = '';
         }
     }
     async createRule(policy, timeFrame) {
@@ -145,7 +119,7 @@ class ScreenTime {
         }
     }
     async createAlarm(policy, info) {
-        const { timeFrame, pids } = info;
+        const { timeFrame } = info;
         const Alarm = require('../../alarm/Alarm.js');
         const AM2 = require('../../alarm/AlarmManager2.js');
         const am2 = new AM2();
@@ -157,7 +131,6 @@ class ScreenTime {
                 "p.threshold": policy.threshold,
                 "p.timeframe.begin": timeFrame.begin / 1000,
                 "p.timeframe.end": timeFrame.end / 1000,
-                "p.auto.pause.pids": pids,
                 "p.target": policy.target,
                 "p.type": policy.type
             });

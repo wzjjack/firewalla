@@ -716,8 +716,7 @@
     "dual_wan": true,
     "clash": false,
     "single_wan_conn_check": false,
-    "accounting": true,
-    "screentime": true
+    "accounting": true
   },
   "hiddenFeatures": [
     "naughty_monkey"
