@@ -18,7 +18,7 @@
 
 const log = require('../../net2/logger.js')(__filename)
 const fc = require('../../net2/config.js');
-const platform = require('../platform/PlatformLoader.js').getPlatform();
+const platform = require('../../platform/PlatformLoader.js').getPlatform();
 const sclient = require('../../util/redis_manager.js').getSubscriptionClient();
 const Message = require('../../net2/Message.js');
 const tracking = require('./tracking.js');
