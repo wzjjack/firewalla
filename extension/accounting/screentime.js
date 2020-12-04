@@ -242,7 +242,7 @@ class ScreenTime {
     async getMacsUsedTime(macs, policy, timeFrame) {
         if (!macs || macs.length == 0) return 0;
         const { target, type } = policy;
-        const { beginOfResetTimem, endOfResetTime } = timeFrame;
+        const { beginOfResetTime, endOfResetTime } = timeFrame;
         const blockInternet = !['app', 'category'].includes(type);
         let count = 0;
         for (const mac of macs) {
