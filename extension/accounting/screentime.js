@@ -165,6 +165,7 @@ class ScreenTime {
             action: 'block',
             target: 'TAG',
             expire: timeFrame.expire,
+            activatedTime: timeFrame.now,
             cronTime: '',
             duration: '',
             tag: [],
@@ -174,6 +175,7 @@ class ScreenTime {
             disabled: '0',
             dnsmasq_only: false,
             autoDeleteWhenExpires: '1',
+            related_screen_time_pid: policy.pid
         }
         const policyPayloads = [];
         const { scope, type, target } = policy;
@@ -212,7 +214,7 @@ class ScreenTime {
         const endOfResetTime = beginOfResetTime + timeWindow * 1000;
         const expire = endOfResetTime / 1000 - now / 1000;
         return {
-            beginOfResetTime, endOfResetTime, expire
+            beginOfResetTime, endOfResetTime, expire, now
         }
     }
     getPolicyRelatedMacs(policy) {
