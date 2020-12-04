@@ -112,7 +112,7 @@ class ScreenTime {
         }
         const macs = this.getPolicyRelatedMacs(policy);
         const count = await this.getMacsUsedTime(macs, policy, timeFrame);
-        log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs.join(',')} begin: ${timeFrame.beginOfResetTime} end: ${timeFrame.endOfResetTime}`, policy);
+        log.info(`check policy ${policy.pid} screen time: ${count}, macs: ${macs.join(',')} begin: ${timeFrame.begin} end: ${timeFrame.end}`, policy);
         const { threshold } = policy;
         if (Number(count) > Number(threshold)) {
             const pids = await this.createRule(policy, timeFrame);
@@ -155,8 +155,8 @@ class ScreenTime {
                 "p.pid": policy.pid,
                 "p.scope": policy.scope,
                 "p.threshold": policy.threshold,
-                "p.resettime.begin": timeFrame.beginOfResetTime / 1000,
-                "p.resettime.end": timeFrame.endOfResetTime / 1000,
+                "p.timeframe.begin": timeFrame.begin / 1000,
+                "p.timeframe.end": timeFrame.end / 1000,
                 "p.auto.pause.pids": pids,
                 "p.target": policy.target,
                 "p.type": policy.type
@@ -210,11 +210,11 @@ class ScreenTime {
         const resetTime = (policy.resetTime || 0) * 1000;
         const now = new Date();
         const { beginTs, endTs } = generateStrictDateTs(now);
-        const beginOfResetTime = beginTs + resetTime;
-        const endOfResetTime = endTs + resetTime;
-        const expire = (endOfResetTime - now) / 1000;
+        const begin = beginTs + resetTime;
+        const end = endTs + resetTime;
+        const expire = (end - now) / 1000;
         return {
-            beginOfResetTime, endOfResetTime, expire, now
+            begin, end, expire, now
         }
     }
     getPolicyRelatedMacs(policy) {
@@ -242,7 +242,7 @@ class ScreenTime {
     async getMacsUsedTime(macs, policy, timeFrame) {
         if (!macs || macs.length == 0) return 0;
         const { target, type } = policy;
-        const { beginOfResetTime, endOfResetTime } = timeFrame;
+        const { begin, end } = timeFrame;
         const blockInternet = !['app', 'category'].includes(type);
         let count = 0;
         for (const mac of macs) {
@@ -252,7 +252,7 @@ class ScreenTime {
                     await tracking.aggr(mac);
                     count += await tracking.getUsedTime(mac);
                 } else {
-                    count += await accounting.count(mac, target, beginOfResetTime, endOfResetTime);
+                    count += await accounting.count(mac, target, begin, end);
                 }
             } catch (e) { }
         }
