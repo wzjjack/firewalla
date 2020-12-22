@@ -41,6 +41,7 @@ const _ = require('lodash');
         scope: ['mac:XX:XX:XX:XX','tag:uid','intf:uuid']
         applyRules: [
             {
+                action: block
                 target?: domainName/categoryName/ or empty when type=='mac'
                 type: dns/category/mac  dns==> this is for app block
                 app.name?: xxx
