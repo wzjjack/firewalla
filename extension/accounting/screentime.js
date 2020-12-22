@@ -40,7 +40,12 @@ const _ = require('lodash');
         offset: 2*60*60 => 2 hours, 02:00 - next day 02:00, default: 0
         scope: ['mac:XX:XX:XX:XX','tag:uid','intf:uuid']
         applyRules: [
-            only need { target/type/app.name/app.uid }
+            {
+                target?: domainName/categoryName/ or empty when type=='mac'
+                type: dns/category/mac  dns==> this is for app block
+                app.name?: xxx
+                app.uid?: xxx
+            }
         ]
     }
 */
@@ -142,7 +147,7 @@ class ScreenTime {
         am2.enqueueAlarm(alarm);
     }
     generatePolicyPayloads(policy, timeFrame) {
-        const { applyRules } = policy;
+        const { applyRules, scope } = policy;
         if (!applyRules || applyRules.length == 0) return [];
         const policyPayloads = [];
         for (const rawRule of applyRules) {
@@ -151,7 +156,26 @@ class ScreenTime {
             rawRule.expire = timeFrame.expire;
             rawRule.autoDeleteWhenExpires = '1';
             rawRule.related_screen_time_pid = policy.pid;
-            policyPayloads.push(rawRule);
+            if (scope && scope.length > 0) {
+                for (const ele of scope) {
+                    if (ele.includes(MAC_PREFIX)) {
+                        const mac = ele.split(MAC_PREFIX)[1];
+                        if (rawRule.type == 'mac') {
+                            rawRule.target = mac;
+                        } else {
+                            rawRule.scope = [mac];
+                        }
+                    } else if (ele.includes(INTF_PREFIX) || ele.includes(TAG_PREFIX)) {
+                        if (rawRule.type == 'mac') {
+                            rawRule.target = 'TAG';
+                        }
+                        rawRule.tag = [ele];
+                    }
+                    policyPayloads.push(rawRule);
+                }
+            } else { // global level
+                policyPayloads.push(rawRule);
+            }
         }
         return policyPayloads;
     }
