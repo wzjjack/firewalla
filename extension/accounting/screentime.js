@@ -158,8 +158,8 @@ class ScreenTime {
             rawRule.autoDeleteWhenExpires = '1';
             rawRule.related_screen_time_pid = policy.pid;
             if (scope && scope.length > 0) {
-                const rawRuleCopy = JSON.parse(JSON.stringify(rawRule));
                 for (const ele of scope) {
+                    const rawRuleCopy = JSON.parse(JSON.stringify(rawRule));
                     if (ele.includes(MAC_PREFIX)) {
                         const mac = ele.split(MAC_PREFIX)[1];
                         if (rawRuleCopy.type == 'mac') {
