@@ -158,21 +158,22 @@ class ScreenTime {
             rawRule.autoDeleteWhenExpires = '1';
             rawRule.related_screen_time_pid = policy.pid;
             if (scope && scope.length > 0) {
+                const rawRuleCopy = JSON.parse(JSON.stringify(rawRule));
                 for (const ele of scope) {
                     if (ele.includes(MAC_PREFIX)) {
                         const mac = ele.split(MAC_PREFIX)[1];
-                        if (rawRule.type == 'mac') {
-                            rawRule.target = mac;
+                        if (rawRuleCopy.type == 'mac') {
+                            rawRuleCopy.target = mac;
                         } else {
-                            rawRule.scope = [mac];
+                            rawRuleCopy.scope = [mac];
                         }
                     } else if (ele.includes(INTF_PREFIX) || ele.includes(TAG_PREFIX)) {
-                        if (rawRule.type == 'mac') {
-                            rawRule.target = 'TAG';
+                        if (rawRuleCopy.type == 'mac') {
+                            rawRuleCopy.target = 'TAG';
                         }
-                        rawRule.tag = [ele];
+                        rawRuleCopy.tag = [ele];
                     }
-                    policyPayloads.push(rawRule);
+                    policyPayloads.push(rawRuleCopy);
                 }
             } else { // global level
                 policyPayloads.push(rawRule);
