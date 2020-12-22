@@ -39,6 +39,9 @@ const _ = require('lodash');
         threshold: 120 => mins
         offset: 2*60*60 => 2 hours, 02:00 - next day 02:00, default: 0
         scope: ['mac:XX:XX:XX:XX','tag:uid','intf:uuid']
+        applyRules: [
+            { raw policy}
+        ]
     }
 */
 
@@ -139,44 +142,16 @@ class ScreenTime {
         am2.enqueueAlarm(alarm);
     }
     generatePolicyPayloads(policy, timeFrame) {
-        const basePayload = { //policyPayload same as payload with app policy:create
-            action: 'block',
-            target: 'TAG',
-            expire: timeFrame.expire,
-            activatedTime: timeFrame.now / 1000,
-            timestamp: timeFrame.now / 1000,
-            cronTime: '',
-            duration: '',
-            tag: [],
-            scope: [],
-            type: 'mac',
-            direction: "bidirection",
-            disabled: '0',
-            dnsmasq_only: false,
-            autoDeleteWhenExpires: '1',
-            related_screen_time_pid: policy.pid
-        }
+        const { applyRules } = policy;
+        if (!applyRules || applyRules.length == 0) return [];
         const policyPayloads = [];
-        const { scope, type, target } = policy;
-        const blockInternet = !['app', 'category'].includes(type);
-        if (!blockInternet) {
-            basePayload.target = target;
-            basePayload.type = type;
-        }
-        if (scope && scope.length > 0) {
-            for (const ele of scope) {
-                const policyPayloadCopy = JSON.parse(JSON.stringify(basePayload));
-                if (ele.includes(MAC_PREFIX)) {
-                    const mac = ele.split(MAC_PREFIX)[1];
-                    blockInternet && (policyPayloadCopy.target = mac);
-                    !blockInternet && (policyPayloadCopy.scope = [mac]);
-                } else if (ele.includes(INTF_PREFIX) || ele.includes(TAG_PREFIX)) {
-                    policyPayloadCopy.tag = [ele];
-                }
-                policyPayloads.push(policyPayloadCopy);
-            }
-        } else { // global level
-            policyPayloads.push(basePayload);
+        for (const rawRule of applyRules) {
+            rawRule.activatedTime = timeFrame.now / 1000;
+            rawRule.timestamp = timeFrame.now / 1000;
+            rawRule.expire = timeFrame.expire;
+            rawRule.autoDeleteWhenExpires = '1';
+            rawRule.related_screen_time_pid = policy.pid;
+            policyPayloads.push(rawRule);
         }
         return policyPayloads;
     }
