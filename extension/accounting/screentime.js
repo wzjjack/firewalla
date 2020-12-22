@@ -40,7 +40,7 @@ const _ = require('lodash');
         offset: 2*60*60 => 2 hours, 02:00 - next day 02:00, default: 0
         scope: ['mac:XX:XX:XX:XX','tag:uid','intf:uuid']
         applyRules: [
-            { raw policy}
+            only need { target/type/app.name/app.uid }
         ]
     }
 */
