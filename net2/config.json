@@ -32,6 +32,7 @@
     "alarm.vpn_client_connection.cooldown": 14400,
     "alarm.upnp.cooldown": 604800,
     "alarm.dual_wan.cooldown": 60,
+    "alarm.alarm_screen_time.cooldown": 86400,
     "alarm.weak_password.cooldown": 604800,
     "alarm.subnet.cooldown": 2592000,
     "alarm.vpn_connect.cooldown": 300,
@@ -78,7 +79,6 @@
     "AdditionalPairPlugin": {},
     "DockerPlugin": {},
     "EncipherPlugin": {},
-    "RecentFlowPlugin": {},
     "GuardianSensor": {},
     "DNSCryptPlugin": {},
     "VPNCheckPlugin": {},
@@ -99,7 +99,8 @@
     "TransferContextIntel",
     "MonkeyIntel",
     "IntfInfoIntel",
-    "TagsInfoIntel"
+    "TagsInfoIntel",
+    "ScreenTimeScope"
   ],
   "sensors": {
     "DHCPSensor": {},
@@ -420,7 +421,6 @@
       "reportInterval": 7200,
       "temperatureThreshold": 95
     },
-    "RecentFlowPlugin": {},
     "FlowUploadSensor": {
       "interval": 900,
       "maxFlows": 50000,
@@ -460,6 +460,10 @@
         "count": 10000
       },
       "conn": {
+        "expires": 86400,
+        "count": 10000
+      },
+      "audit": {
         "expires": 86400,
         "count": 10000
       },
@@ -551,7 +555,10 @@
       "fireResetBluetooth": true,
       "bonelogInterval": 900
     },
-    "ACLAuditLogPlugin": {},
+    "ACLAuditLogPlugin": {
+      "interval": 300,
+      "expires": 86400
+    },
     "NewDeviceTagSensor": {},
     "AccountingPlugin": {},
     "DockerSensor": {},
@@ -714,7 +721,9 @@
     "dual_wan": true,
     "clash": false,
     "single_wan_conn_check": false,
-    "accounting": true
+    "accounting": true,
+    "event_schedule": true,
+    "network_metrics": true
   },
   "hiddenFeatures": [
     "naughty_monkey"

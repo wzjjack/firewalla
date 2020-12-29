@@ -138,8 +138,8 @@ sudo iptables -w -F FW_INPUT_ACCEPT
 sudo iptables -w -C INPUT -j FW_INPUT_ACCEPT &>/dev/null || sudo iptables -w -A INPUT -j FW_INPUT_ACCEPT
 
 # accept packet to DHCP client, sometimes the reply is a unicast packet and will not be considered as a reply packet of the original broadcast packet by conntrack module
-sudo iptables -w -A FW_INPUT_ACCEPT -p udp --dport 68 -j ACCEPT
-sudo iptables -w -A FW_INPUT_ACCEPT -p tcp --dport 68 -j ACCEPT
+sudo iptables -w -A FW_INPUT_ACCEPT -p udp --dport 68 --sport 67:68 -j ACCEPT
+sudo iptables -w -A FW_INPUT_ACCEPT -p tcp --dport 68 --sport 67:68 -j ACCEPT
 
 sudo iptables -w -N FW_INPUT_DROP &> /dev/null
 sudo iptables -w -F FW_INPUT_DROP
@@ -151,7 +151,7 @@ sudo iptables -w -F FW_DROP
 # do not apply ACL enforcement for outbound connections of acl off devices/networks
 sudo iptables -w -A FW_DROP -m set --match-set acl_off_set src,src -m set ! --match-set monitored_net_set dst,dst -m conntrack --ctdir ORIGINAL -j RETURN
 sudo iptables -w -A FW_DROP -m set --match-set acl_off_set dst,dst -m set ! --match-set monitored_net_set src,src -m conntrack --ctdir REPLY -j RETURN
-sudo iptables -w -A FW_DROP -p tcp -j REJECT
+sudo iptables -w -A FW_DROP -p tcp -j REJECT --reject-with tcp-reset
 sudo iptables -w -A FW_DROP -j DROP
 
 # add FW_ACCEPT to the end of FORWARD chain
@@ -483,8 +483,8 @@ if [[ -e /sbin/ip6tables ]]; then
   sudo ip6tables -w -C INPUT -j FW_INPUT_ACCEPT &>/dev/null || sudo ip6tables -w -A INPUT -j FW_INPUT_ACCEPT
 
   # accept traffic to DHCPv6 client, sometimes the reply is a unicast packet and will not be considered as a reply packet of the original broadcast packet by conntrack module
-  sudo ip6tables -w -A FW_INPUT_ACCEPT -p udp --dport 546 -j ACCEPT
-  sudo ip6tables -w -A FW_INPUT_ACCEPT -p tcp --dport 546 -j ACCEPT
+  sudo ip6tables -w -A FW_INPUT_ACCEPT -p udp --dport 546 --sport 546:547 -j ACCEPT
+  sudo ip6tables -w -A FW_INPUT_ACCEPT -p tcp --dport 546 --sport 546:547 -j ACCEPT
   # accept neighbor discovery packets
   sudo ip6tables -w -A FW_INPUT_ACCEPT -p icmpv6 --icmpv6-type neighbour-solicitation -j ACCEPT
   sudo ip6tables -w -A FW_INPUT_ACCEPT -p icmpv6 --icmpv6-type neighbour-advertisement -j ACCEPT
@@ -500,8 +500,8 @@ if [[ -e /sbin/ip6tables ]]; then
   # do not apply ACL enforcement for outbound connections of acl off devices/networks
   sudo ip6tables -w -A FW_DROP -m set --match-set acl_off_set src,src -m set ! --match-set monitored_net_set dst,dst -m conntrack --ctdir ORIGINAL -j RETURN
   sudo ip6tables -w -A FW_DROP -m set --match-set acl_off_set dst,dst -m set ! --match-set monitored_net_set src,src -m conntrack --ctdir REPLY -j RETURN
-  sudo ip6tables -w -C FW_DROP -p tcp -j REJECT &>/dev/null || sudo ip6tables -w -A FW_DROP -p tcp -j REJECT
-  sudo ip6tables -w -C FW_DROP -j DROP &>/dev/null || sudo ip6tables -w -A FW_DROP -j DROP
+  sudo ip6tables -w -A FW_DROP -p tcp -j REJECT --reject-with tcp-reset
+  sudo ip6tables -w -A FW_DROP -j DROP
 
   # add FW_ACCEPT to the end of FORWARD chain
   sudo ip6tables -w -N FW_ACCEPT &>/dev/null

@@ -141,6 +141,20 @@ class CategoryUpdater extends CategoryUpdaterBase {
     return `${CUSTOMIZED_CATEGORY_KEY_PREFIX}${category}`;
   }
 
+  _getCustomizedCategoryIpsetType(category) {
+    if (this.customizedCategories[category]) {
+      switch (this.customizedCategories[category].type) {
+        case "net":
+          return "hash:net";
+        case "port":
+          return "bitmap:port";
+        default:
+          return "hash:net";
+      }
+    }
+    return "hash:net";
+  }
+
   async _getNextCustomizedCategory() {
     let id = await rclient.getAsync("customized_category:id");
     if (!id) {
@@ -164,33 +178,19 @@ class CategoryUpdater extends CategoryUpdaterBase {
     let c = null;
     if (!obj || !obj.name)
       throw new Error(`name is not specified`);
-    if (category) {
-      if (this.customizedCategories[category]) {
-        // update existing customized category;
-        c = category;
-        const key = this._getCustomizedCategoryKey(category);
-        const o = Object.assign({}, obj, { category: category });
-        await rclient.hmsetAsync(key, o);
-      } else {
-        throw new Error(`Customized category ${category} is not found`);
-      }
-    } else {
-      const nameExists = Object.keys(this.customizedCategories).some(c => this.customizedCategories[c].name === obj.name);
-      if (nameExists)
-        throw new Error(`Category name '${obj.name}' already exists`);
 
-      const newCategory = await this._getNextCustomizedCategory();
-      c = newCategory;
-      const key = this._getCustomizedCategoryKey(newCategory);
-      const o = Object.assign({}, obj, {category: newCategory});
-      await rclient.hmsetAsync(key, o);
-    }
+    if (!category)
+      category = require('uuid').v4();
+    obj.category = category;
+    const key = this._getCustomizedCategoryKey(category);
+    await rclient.delAsync(key);
+    await rclient.hmsetAsync(key, obj);
     sem.emitEvent({
       type: "CustomizedCategory:Updated",
       toProcess: "FireMain"
     });
     await this.refreshCustomizedCategories();
-    return this.customizedCategories[c];
+    return this.customizedCategories[category];
   }
 
   async removeCustomizedCategory(category) {
@@ -242,7 +242,7 @@ class CategoryUpdater extends CategoryUpdaterBase {
 
   async activateCategory(category) {
     if (this.activeCategories[category]) return;
-    await super.activateCategory(category, this._isCustomizedCategory(category) ? "hash:net" : "hash:ip");
+    await super.activateCategory(category, this._isCustomizedCategory(category) ? this._getCustomizedCategoryIpsetType(category) : "hash:ip");
     sem.emitEvent({
       type: "Policy:CategoryActivated",
       toProcess: "FireMain",
@@ -318,9 +318,21 @@ class CategoryUpdater extends CategoryUpdaterBase {
     await this.flushIncludedDomains(category);
     
     const domainRegex = /^[-a-zA-Z0-9\.\*]+?/;
-    const ipv4Addresses = elements.filter(e => new Address4(e).isValid());
-    const ipv6Addresses = elements.filter(e => new Address6(e).isValid());
-    const domains = elements.filter(e => !ipv4Addresses.includes(e) && !ipv6Addresses.includes(e) && domainRegex.test(e));
+    let ipv4Addresses = [];
+    let ipv6Addresses = [];
+    switch (this.customizedCategories[category].type) {
+      case "port":
+        // use ipv4 and ipv6 data structure as a stub to store port numbers
+        ipv4Addresses = elements;
+        ipv6Addresses = elements;
+        break;
+      case "net":
+      default:
+        ipv4Addresses = elements.filter(e => new Address4(e).isValid());
+        ipv6Addresses = elements.filter(e => new Address6(e).isValid());
+    }
+    
+    const domains = elements.filter(e => !ipv4Addresses.includes(e) && !ipv6Addresses.includes(e) && domainRegex.test(e)).map(domain => domain.toLowerCase());
     if (ipv4Addresses.length > 0)
       await this.addIPv4Addresses(category, ipv4Addresses);
     if (ipv6Addresses.length > 0)
@@ -642,6 +654,7 @@ class CategoryUpdater extends CategoryUpdaterBase {
     let dd = _.union(domains, defaultDomains)
     dd = _.difference(dd, excludeDomains)
     dd = _.union(dd, includedDomains)
+    dd = dd.map(d => d.toLowerCase());
 
     const previousEffectiveDomains = this.effectiveCategoryDomains[category] || [];
     const removedDomains = previousEffectiveDomains.filter(d => !dd.includes(d));

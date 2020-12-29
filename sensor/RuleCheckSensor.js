@@ -117,6 +117,10 @@ class RuleCheckSensor extends Sensor {
       // other rule types have separate rules
       if (policy.action === "qos")
         return false;
+      if (policy.action === "route")
+        return false;
+      if (policy.action === "match_group")
+        return false;
       if (policy.disabled == 1) {
         return false;
       }
@@ -126,6 +130,14 @@ class RuleCheckSensor extends Sensor {
       }
       // network/group level rule has separate rule in iptables
       if (policy.tag && policy.tag.length > 0) {
+        return false;
+      }
+      // vpn profile rule has separate rule in iptables
+      if (policy.vpnProfile && policy.vpnProfile.length > 0) {
+        return false;
+      }
+      // rule group rule has separate chain in iptables
+      if (policy.parentRgId && policy.parentRgId.length > 0) {
         return false;
       }
       // do not check expired rules
