@@ -85,8 +85,10 @@
     "SafeSearchPlugin": {},
     "SystemDNSSensor": {},
     "RemoteNotificationSensor": {},
-    "WireGuardPlugin": {},
-    "EventSensor":{}
+    "EventSensor":{},
+    "NetworkMonitorSensor":{},
+    "LiveStatsPlugin": {},
+    "AdblockPlugin": {}
   },
   "intels": [
     "DedupAlarm",
@@ -402,6 +404,33 @@
     "AdblockPlugin": {},
     "DeviceNameUpdateSensor": {},
     "IPv6DiscoverySensor": {},
+    "NetworkMonitorSensor": {
+      "MY_GATEWAYS": {
+        "ping": {
+            "sampleCount": 20,
+            "sampleInterval": 300,
+            "processInterval": 3600,
+            "expirePeriod": 86400
+        }
+      },
+      "MY_DNSES": {
+        "dns": {
+            "lookupName": "check.firewalla.com",
+            "sampleCount": 5,
+            "sampleInterval": 180,
+            "processInterval": 3600,
+            "expirePeriod": 86400
+        }
+      },
+      "https://check.firewalla.com" : {
+        "http": {
+            "sampleCount": 5,
+            "sampleInterval": 180,
+            "processInterval": 3600,
+            "expirePeriod": 86400
+        }
+      }
+    },
     "NetworkStatsSensor": {
       "internetTestHosts": [
         "google.com",
@@ -549,20 +578,35 @@
     "SystemDNSSensor": {},
     "LocalDomainSensor": {},
     "ClashPlugin": {},
-    "WireGuardPlugin": {},
     "InternalScanSensor": {},
     "LogScanSensor": {
       "fireResetBluetooth": true,
       "bonelogInterval": 900
     },
     "ACLAuditLogPlugin": {
+      "buffer": 30,
       "interval": 300,
       "expires": 86400
     },
     "NewDeviceTagSensor": {},
     "AccountingPlugin": {},
     "DockerSensor": {},
-    "EventSensor": {}
+    "EventSensor": {
+      "eventsLimit" : 10000,
+      "eventsExpire" : 604800,
+      "intervals" : {
+        "cleanEventsByTime" : 3600,
+        "cleanEventsByCount" : 300,
+        "pingGateway" : 300,
+        "digDNS" : 300,
+        "disk_space.sh" : 300,
+        "ethernet_state.sh" : 60,
+        "service_status.sh" : 300,
+        "speed_test.sh" : -1,
+        "system_load.sh" : 300,
+        "default" : 3600
+      }
+    }
   },
   "hooks": {
     "NewDeviceHook": {},
@@ -722,8 +766,9 @@
     "clash": false,
     "single_wan_conn_check": false,
     "accounting": true,
-    "event_schedule": true,
-    "network_metrics": true
+    "event_collect": true,
+    "network_metrics": true,
+    "network_monitor": true
   },
   "hiddenFeatures": [
     "naughty_monkey"
