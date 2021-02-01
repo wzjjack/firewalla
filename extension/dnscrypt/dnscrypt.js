@@ -71,7 +71,10 @@ class DNSCrypt {
     const allServerNames = allServers.map((x) => x.name).filter(Boolean);
     content = content.replace("%DNSCRYPT_ALL_SERVER_LIST%", this.allServersToToml(allServers));
     let serverList = await this.getServers();
-    serverList = serverList.filter((n) => allServerNames.includes(n));
+    serverList = serverList.map((server) => {
+      if (allServerNames.includes(server)) { return server }
+      if (allServerNames.includes(server.name)) { return `${server.name}` }
+    }).filter(Boolean)
     content = content.replace("%DNSCRYPT_SERVER_LIST%", JSON.stringify(serverList));
 
     if (reCheckConfig) {
@@ -122,7 +125,7 @@ class DNSCrypt {
 
     try {
       const servers = JSON.parse(serversString);
-      return servers.map((s) => _.isObject(s) ? s.name : s).filter(Boolean);
+      return servers;
     } catch (err) {
       log.error("Failed to parse servers, err:", err);
       return this.getDefaultServers();
@@ -174,11 +177,6 @@ class DNSCrypt {
       }
     }
     return this.getDefaultAllServers();
-  }
-
-  async getAllServerNames() {
-    const all = [].concat(await this.getAllServers(), await this.getCustomizeServers());
-    return all.map((x) => x.name).filter(Boolean);
   }
 
   async setAllServers(servers) {
