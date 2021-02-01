@@ -98,7 +98,7 @@ class DNSCrypt {
     return servers.map((s) => {
       if (!s || !s.name || !s.stamp) return null;
       return `[static.'${s.name}']\n  stamp = '${s.stamp}'\n`;
-    }).filter(Boolean);
+    }).filter(Boolean).join("\n");
   }
 
   async start() {
