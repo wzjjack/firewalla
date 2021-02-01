@@ -187,7 +187,7 @@ class DNSCrypt {
     return rclient.setAsync(allServerKey, JSON.stringify(servers));
   }
   async getCustomizeServers() {
-    // string | object {name:'nextdns',stamp:'xyz'}
+    // string | object {name:'nextdns',stamp:'xyz',customized: true}
     // object means customized from user, string means from our cloud
     let selectedServers = [];
     const serversString = await rclient.getAsync(serverKey);
@@ -196,7 +196,7 @@ class DNSCrypt {
     } catch (err) {
       log.error("Failed to parse servers, err:", err);
     }
-    return _.isArray(selectedServers) ? selectedServers.filter((server) => _.isObject(server)) : [];
+    return _.isArray(selectedServers) ? selectedServers.filter((server) => _.isObject(server) && server.customized) : [];
   }
 }
 
