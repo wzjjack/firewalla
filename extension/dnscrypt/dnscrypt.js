@@ -201,7 +201,7 @@ class DNSCrypt {
     } catch (err) {
       log.error("Failed to parse servers, err:", err);
     }
-    return selectedServers.filter((server) => _.isObject(server));
+    return _.isArray(selectedServers) ? selectedServers.filter((server) => _.isObject(server)) : [];
   }
 }
 
