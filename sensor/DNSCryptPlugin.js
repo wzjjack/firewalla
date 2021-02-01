@@ -60,7 +60,7 @@ class DNSCryptPlugin extends Sensor {
       start: this.start,
       stop: this.stop
     });
-    
+
     await exec(`mkdir -p ${dnsmasqConfigFolder}`);
 
     this.hookFeature(featureName);
@@ -76,7 +76,7 @@ class DNSCryptPlugin extends Sensor {
 
   async apiRun() {
     extensionManager.onSet("dohConfig", async (msg, data) => {
-      if(data && data.servers) {
+      if (data && data.servers) {
         await dc.setServers(data.servers)
         sem.sendEventToFireMain({
           type: 'DOH_REFRESH'
@@ -86,14 +86,10 @@ class DNSCryptPlugin extends Sensor {
 
     extensionManager.onGet("dohConfig", async (msg, data) => {
       const selectedServers = await dc.getServers();
-<<<<<<< HEAD
-      const allServers = [].concat(await dc.getAllServers(), await dc.getCustomizeServers());
-=======
       const allServers = await dc.getAllServerNames();
       const customizeServers = await dc.getCustomizeServers();
->>>>>>> wzj-doh-pr
       return {
-        selectedServers, allServers
+        selectedServers, allServers, customizeServers
       }
     });
   }
@@ -102,8 +98,8 @@ class DNSCryptPlugin extends Sensor {
   async applyPolicy(host, ip, policy) {
     log.info("Applying DoH policy:", ip, policy);
     try {
-      if(ip === '0.0.0.0') {
-        if(policy && policy.state) {
+      if (ip === '0.0.0.0') {
+        if (policy && policy.state) {
           this.systemSwitch = true;
         } else {
           this.systemSwitch = false;
@@ -141,7 +137,7 @@ class DNSCryptPlugin extends Sensor {
             }
             break;
           }
-          case "Host" : {
+          case "Host": {
             const macAddress = host && host.o && host.o.mac;
             if (macAddress) {
               if (policy && policy.state === true)
@@ -172,7 +168,7 @@ class DNSCryptPlugin extends Sensor {
           default:
         }
       }
-    } catch(err) {
+    } catch (err) {
       log.error("Got error when applying DoH policy", err);
     }
   }
@@ -193,7 +189,7 @@ class DNSCryptPlugin extends Sensor {
       const dnsmasqEntry = `server=${dc.getLocalServer()}$${featureName}`;
       await fs.writeFileAsync(configFilePath, dnsmasqEntry);
     } else {
-      await fs.unlinkAsync(configFilePath).catch((err) => {});
+      await fs.unlinkAsync(configFilePath).catch((err) => { });
     }
 
     await this.applySystemDoH();
@@ -226,7 +222,7 @@ class DNSCryptPlugin extends Sensor {
   }
 
   async applySystemDoH() {
-    if(this.systemSwitch) {
+    if (this.systemSwitch) {
       return this.systemStart();
     } else {
       return this.systemStop();
@@ -295,7 +291,7 @@ class DNSCryptPlugin extends Sensor {
 
   async perTagReset(tagUid) {
     const configFile = `${dnsmasqConfigFolder}/tag_${tagUid}_${featureName}.conf`;
-    await fs.unlinkAsync(configFile).catch((err) => {});
+    await fs.unlinkAsync(configFile).catch((err) => { });
     dnsmasq.scheduleRestartDNSService();
   }
 
@@ -335,7 +331,7 @@ class DNSCryptPlugin extends Sensor {
     }
     const configFile = `${NetworkProfile.getDnsmasqConfigDirectory(uuid)}/${featureName}_${iface}.conf`;
     // remove config file
-    await fs.unlinkAsync(configFile).catch((err) => {});
+    await fs.unlinkAsync(configFile).catch((err) => { });
     dnsmasq.scheduleRestartDNSService();
   }
 
@@ -356,7 +352,7 @@ class DNSCryptPlugin extends Sensor {
   async perDeviceReset(macAddress) {
     const configFile = `${dnsmasqConfigFolder}/${featureName}_${macAddress}.conf`;
     // remove config file
-    await fs.unlinkAsync(configFile).catch((err) => {});
+    await fs.unlinkAsync(configFile).catch((err) => { });
     dnsmasq.scheduleRestartDNSService();
   }
 
@@ -376,7 +372,7 @@ class DNSCryptPlugin extends Sensor {
 
   async perVPNProfileReset(cn) {
     const configFile = `${dnsmasqConfigFolder}/vpn_prof_${cn}_${featureName}.conf`;
-    await fs.unlinkAsync(configFile).catch((err) => {});
+    await fs.unlinkAsync(configFile).catch((err) => { });
     dnsmasq.scheduleRestartDNSService();
   }
 
