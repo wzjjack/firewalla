@@ -31,10 +31,28 @@ const sc = require('../lib/SystemCheck.js');
  * -- message is encrypted already
  */
 
-const msgHandler = (req, res, next) => {
+const postMsgHandler = (req, res, next) => {
   const gid = req.params.gid;
-  const streaming = (req.body.message && req.body.message.obj && req.body.message.obj.streaming) || false;
   (async () => {
+    const time = process.hrtime();
+    const controller = await cloudWrapper.getNetBotController(gid);
+    const response = await controller.msgHandlerAsync(gid, req.body);
+    log.info('API Cost Time:', `${process.hrtime(time)[1] / 1e6} ms`);
+    res.body = JSON.stringify(response);
+    next();
+  })()
+    .catch((err) => {
+      // netbot controller is not ready yet, waiting for init complete
+      log.error("Got error when handling api call from app", err, err.stack);
+      res.status(503);
+      res.json({ error: 'Initializing Firewalla Device, please try later' });
+    });
+}
+
+const getMsgHandler = (req, res, next) => {
+  const gid = req.params.gid;
+  (async () => {
+    const streaming = (req.body.message && req.body.message.obj && req.body.message.obj.streaming) || false;
     if (streaming) {
       const resSocket = res.socket;
       res.socket.on('close', () => {
@@ -70,12 +88,9 @@ const msgHandler = (req, res, next) => {
         }
       }
     } else {
-      const time = process.hrtime();
-      const controller = await cloudWrapper.getNetBotController(gid);
-      const response = await controller.msgHandlerAsync(gid, req.body);
-      log.info('API Cost Time:', `${process.hrtime(time)[1] / 1e6} ms`);
-      res.body = JSON.stringify(response);
-      next();
+      log.error("Got error when handling get request(only support event), err:", err);
+      res.status(400);
+      res.json({ "error": "Invalid request" });
     }
   })()
     .catch((err) => {
@@ -85,13 +100,11 @@ const msgHandler = (req, res, next) => {
       res.json({ error: 'Initializing Firewalla Device, please try later' });
     });
 }
-const handlers = [sc.isInitialized, encryption.decrypt, sc.debugInfo,
-  msgHandler];
 
 const convertMessageToBody = function (req, res, next) {
   try {
     const encryptedMessage = req.query.message;
-    req.body = JSON.parse(encryptedMessage);
+    req.body.message = JSON.parse(encryptedMessage);
     next();
   } catch (e) {
     log.error('parse encryptedMessage in path error', e);
@@ -100,9 +113,9 @@ const convertMessageToBody = function (req, res, next) {
     return;
   }
 }
-
-router.post('/message/:gid', handlers, sc.compressPayloadIfRequired, encryption.encrypt);
-router.get('/message/:gid', convertMessageToBody, handlers);
+const commonHandlers = [sc.isInitialized, encryption.decrypt, sc.debugInfo];
+router.post('/message/:gid', commonHandlers, postMsgHandler, sc.compressPayloadIfRequired, encryption.encrypt);
+router.get('/message/:gid', convertMessageToBody, commonHandlers, getMsgHandler);
 
 log.info("==============================")
 log.info("FireAPI started successfully")
