@@ -251,7 +251,7 @@ class CategoryUpdateSensor extends Sensor {
         }
       });
 
-      sem.on('Category:Deleted', async (event) => {
+      sem.on('Category:Delete', async (event) => {
         const category = event.category;
         if (!categoryUpdater.isCustomizedCategory(category) &&
           categoryUpdater.activeCategories[category]) {
