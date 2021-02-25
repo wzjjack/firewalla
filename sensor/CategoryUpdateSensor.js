@@ -36,7 +36,8 @@ const { Address4, Address6 } = require('ip-address');
 const domainBlock = require('../control/DomainBlock.js');
 const { isHashDomain } = require('../util/util.js');
 
-const dnsmasq = require('../extension/dnsmasq/dnsmasq.js');
+const DNSMASQ = require('../extension/dnsmasq/dnsmasq.js');
+const dnsmasq = new DNSMASQ();
 
 const categoryHashsetMapping = {
   "games": "app.gaming",
