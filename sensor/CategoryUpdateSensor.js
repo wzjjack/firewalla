@@ -239,7 +239,7 @@ class CategoryUpdateSensor extends Sensor {
       sem.on('Categorty:ReloadFromBone', async (event) => {
         const category = event.category;
         if (!categoryUpdater.isCustomizedCategory(category) &&
-          categoryUpdater.activeCategories.includes(category)) {
+          categoryUpdater.activeCategories[category]) {
           sem.emitEvent({
             type: "Policy:CategoryActivated",
             toProcess: "FireMain",
