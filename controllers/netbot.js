@@ -3258,17 +3258,13 @@ class netBot extends ControllerBot {
         break
       }
       case "reloadCategoryFromBone":{
-        (async () => {
-          const category = value.category
-          sem.emitEvent({
-            type: "Policy:CategoryActivated", // force re-activate category
-            category: category,
-            toProcess: "FireMain"
-          })
-          this.simpleTxData(msg, {}, null, callback)
-        })().catch((err) => {
-          this.simpleTxData(msg, {}, err, callback)
+        const category = value.category
+        sem.emitEvent({
+          type: "Categorty:ReloadFromBone", // force re-activate category
+          category: category,
+          toProcess: "FireMain"
         })
+        this.simpleTxData(msg, {}, null, callback)
         break;
       }
       case "addIncludeDomain": {
