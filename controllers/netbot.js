@@ -3267,7 +3267,7 @@ class netBot extends ControllerBot {
         this.simpleTxData(msg, {}, null, callback)
         break;
       }
-      case "category:delete":{
+      case "deleteCategory":{
         const category = value.category;
         if (category && category.includes('targetList:')) {// delete category(only for target list now)
           sem.emitEvent({
