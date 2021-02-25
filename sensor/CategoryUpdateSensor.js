@@ -36,6 +36,8 @@ const { Address4, Address6 } = require('ip-address');
 const domainBlock = require('../control/DomainBlock.js');
 const { isHashDomain } = require('../util/util.js');
 
+const dnsmasq = require('../extension/dnsmasq/dnsmasq.js');
+
 const categoryHashsetMapping = {
   "games": "app.gaming",
   "social": "app.social",
@@ -248,6 +250,21 @@ class CategoryUpdateSensor extends Sensor {
           });
         }
       });
+
+      sem.on('Category:Deleted', async (event) => {
+        const category = event.category;
+        if (!categoryUpdater.isCustomizedCategory(category) &&
+          categoryUpdater.activeCategories[category]) {
+          delete categoryUpdater.activeCategories[category];
+          delete categoryHashsetMapping[category];
+          await categoryUpdater.flushDefaultDomains(category);
+          await categoryUpdater.flushDefaultHashedDomains(category);
+          await categoryUpdater.flushIPv4Addresses(category);
+          await categoryUpdater.flushIPv6Addresses(category);
+          await dnsmasq.deletePolicyCategoryFilterEntry(category);
+          // handle related ipset?
+        }
+      })
 
       await this.regularJob()
       await this.securityJob()
