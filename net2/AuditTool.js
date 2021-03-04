@@ -30,11 +30,13 @@ class AuditTool extends LogQuery {
   }
 
   shouldMerge(previous, incoming) {
-    const compareKeys = ['type', 'device', 'fd', 'protocol', 'port'];
+    const compareKeys = ['type', 'device', 'protocol', 'port'];
     if (!previous || !previous.type) return false
-    previous.type == 'dns' ? compareKeys.push('domain') : compareKeys.push('ip')
+    previous.type == 'dns' ? compareKeys.push('domain', 'qc', 'qt', 'rc') : compareKeys.push('ip', 'fd')
     return _.isEqual(_.pick(previous, compareKeys), _.pick(incoming, compareKeys));
   }
+
+  includeFirewallaInterfaces() { return true }
 
   async getAuditLogs(options) {
     options = options || {}
@@ -50,32 +52,43 @@ class AuditTool extends LogQuery {
       ltype: 'audit',
       type: entry.type,
       ts: entry.ets || entry.ts,
-      // ets: entry.ets || entry.ts,
-      fd: entry.fd,
       count: entry.ct,
-      protocol: entry.pr
+      protocol: entry.pr,
+      intf: entry.intf,
     };
 
-    // f.intf = entry.intf;
-    // f.tags = entry.tags;
-
-    if (entry.dn) { f.domain = entry.dn }
-
-    try {
-      if (entry.fd === 'in') {
-        f.port = Number(entry.dp);
-        f.devicePort = Number(entry.sp[0]);
-      } else {
-        f.port = Number(entry.sp[0]);
-        f.devicePort = Number(entry.dp);
-      }
-    } catch(err) {
+    if (entry.type == 'dns') {
+      Object.assign(f, {
+        rrClass: entry.qc,
+        rrType: entry.qt,
+        rcode: entry.rc,
+        domain: entry.dn
+      })
+      if (entry.ans) f.answers = entry.ans
+    } else {
+      f.fd = entry.fd
     }
 
-    if (entry.fd === 'in') {
+    try {
+      if (entry.type == 'ip') {
+        if (entry.fd === 'in') {
+          f.port = Number(entry.dp);
+          f.devicePort = Number(entry.sp[0]);
+        } else {
+          f.port = Number(entry.sp[0]);
+          f.devicePort = Number(entry.dp);
+        }
+      } else {
+        f.port = Number(entry.dp);
+      }
+    } catch(err) {
+      log.debug('Failed to parse port', err)
+    }
+
+    if (entry.type == 'dns' || entry.fd === 'in') {
       f.ip = entry.dh;
       f.deviceIP = entry.sh;
-    } else {
+    } else { // ip.out
       f.ip = entry.sh;
       f.deviceIP = entry.dh;
     }
@@ -83,8 +96,9 @@ class AuditTool extends LogQuery {
     return f;
   }
 
-  getLogKey(mac) {
-    return `audit:drop:${mac}`
+  getLogKey(mac, options) {
+    // options.block == null will also be counted here
+    return options.block == undefined || options.block ? `audit:drop:${mac}` : `audit:accept:${mac}`
   }
 }
 

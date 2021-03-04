@@ -142,8 +142,11 @@ const simple = (req, res, next) => {
 //    const c = JSON.parse(content)
     body.message.obj.data.value = content;
 
+    // make a reference to this object, because res.socket will be gone after close event on res.socket
+    const resSocket = res.socket; 
+
     res.socket.on('close', () => {
-      log.info("connection is closed:", res.socket._peername);
+      log.info("connection is closed:", resSocket._peername);
       res.is_closed = true;
     });
 
@@ -156,6 +159,8 @@ const simple = (req, res, next) => {
           'Connection': 'keep-alive'
         });
         res.flushHeaders();
+
+        body.message.obj.data.value.streaming = {id: body.message.obj.id};
 
         while(streaming && !res.is_closed) {
           try {

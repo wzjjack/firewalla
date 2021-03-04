@@ -52,13 +52,32 @@ class EventSensor extends Sensor {
         extensionManager.onGet("events", async (msg, data) => {
             try {
                 log.info(`processing onGet events with data(${JSON.stringify(data)})`);
-                let result = await ea.listEvents(data.begin,data.end,data.limit_offset,data.limit_count);
+                let result = await ea.listEvents(data.min,data.max,data.withscores,data.limit_offset,data.limit_count,data.reverse,data.parse_json);
                 return result;
             } catch (err) {
                 log.error(`failed to list events with ${JSON.stringify(data)}, ${err}`);
             }
         });
 
+        extensionManager.onGet("latestAllStateEvents", async (msg, data) => {
+            try {
+                log.info(`processing onGet latest events with data(${JSON.stringify(data)})`);
+                let result = await ea.listLatestStateEventsAll(data.parse_json);
+                return result;
+            } catch (err) {
+                log.error(`failed to list latest all events with ${JSON.stringify(data)}, ${err}`);
+            }
+        });
+
+        extensionManager.onGet("latestErrorStateEvents", async (msg, data) => {
+            try {
+                log.info(`processing onGet latest error events with data(${JSON.stringify(data)})`);
+                let result = await ea.listLatestStateEventsError(data.parse_json);
+                return result;
+            } catch (err) {
+                log.error(`failed to list latest error events with ${JSON.stringify(data)}, ${err}`);
+            }
+        });
     }
 
     async run() {
@@ -116,6 +135,10 @@ class EventSensor extends Sensor {
             await this.checkReboot();
             this.scheduledJSJobs();
             await this.scheduleScriptCollectors();
+            // schedule cleanup latest state data
+            this.scheduledJobs["cleanLatestStateEventsByTime"] = setInterval(async () => {
+                await this.cleanLatestStateEventsByTime(this.config.latestStateEventsExpire);
+            }, 1000*this.config.intervals.cleanEventsByTime);
         } catch (err) {
             log.error("failed to start collect events:", err);
         }
@@ -134,7 +157,7 @@ class EventSensor extends Sensor {
     }
 
     scheduledJSJobs() {
-        const JS_JOBS = ['cleanEventsByTime', 'cleanEventsByCount', 'pingGateway', 'digDNS'];
+        const JS_JOBS = ['cleanEventsByTime', 'cleanEventsByCount'];
         for (const jsjob of JS_JOBS) {
             log.info(`Scheduling ${jsjob} every ${this.getConfiguredInterval(jsjob)} seconds`);
             this.scheduledJobs[jsjob] = setInterval( async() => {
@@ -171,6 +194,15 @@ class EventSensor extends Sensor {
             }
         } catch (err) {
             log.error(`failed to schedule collectors under ${COLLECTOR_DIR}: ${err}`);
+        }
+    }
+
+    async cleanLatestStateEventsByTime(expirePeriod) {
+        try {
+            log.info(`clean latest state events older than ${expirePeriod} seconds`);
+            await ea.cleanLatestStateEventsByTime(Date.now()-1000*expirePeriod);
+        } catch (err) {
+            log.error(`failed to clean latest state events older than ${expirePeriod} seconds: ${err}`);
         }
     }
 
@@ -211,7 +243,7 @@ class EventSensor extends Sensor {
      *       "labels"      : {...}
      *     }
      *   ACTION:
-     *     { "event_type"  : "state",
+     *     { "event_type"  : "action",
      *       "action_type"  : <action_type>,
      *       "action_value" : <action_value>,
      *       "labels"      : {...}
@@ -290,15 +322,24 @@ class EventSensor extends Sensor {
 
     async pingGateway() {
         log.info(`try to ping gateways...`);
+        const PACKET_COUNT = 8;
         const stateType = "ping";
-        for (const gw of sysManager.myGatways() ) {
+        const labels = {"packet_count": PACKET_COUNT};
+        for (const gw of sysManager.myGateways() ) {
             try {
                 log.debug(`ping ${gw}`);
-                await exec(`ping -w 3 ${gw}`);
-                era.addStateEvent(stateType,gw,0);
+                const result = await exec(`ping -n -c ${PACKET_COUNT} -W 3 ${gw}`);
+                for (const line of result.stdout.split("\n")) {
+                    const found = line.match(/ ([0-9]+)% packet loss/);
+                    if (found) {
+                        labels.loss_rate = found[1];
+                        break
+                    }
+                }
+                era.addStateEvent(stateType,gw,0,labels);
             } catch (err) {
                 log.error(`failed to ping ${gw}: ${err}`);
-                era.addStateEvent(stateType,gw,1);
+                era.addStateEvent(stateType,gw,1,labels);
             }
         }
     }

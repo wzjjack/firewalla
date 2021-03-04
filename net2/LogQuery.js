@@ -17,6 +17,7 @@
 const log = require('./logger.js')(__filename);
 
 const rclient = require('../util/redis_manager.js').getRedisClient()
+const sysManager = require('./SysManager')
 
 const IntelTool = require('../net2/IntelTool');
 const intelTool = new IntelTool();
@@ -24,6 +25,7 @@ const intelTool = new IntelTool();
 const DestIPFoundHook = require('../hook/DestIPFoundHook');
 const destIPFoundHook = new DestIPFoundHook();
 
+const Constants = require('../net2/Constants.js');
 const MAX_RECENT_INTERVAL = 24 * 60 * 60; // one day
 const MAX_RECENT_LOG = 100;
 
@@ -107,8 +109,12 @@ class LogQuery {
 
     // always query the feed moves slowest
     let feed = options.asc ? _.minBy(feeds, 'options.ts') : _.maxBy(feeds, 'options.ts')
+    let prevFeed, prevTS
 
     while (feed && this.validResultCount(feed.options, results) < options.count) {
+
+      prevFeed = feed
+      prevTS = feed.options.ts
 
       const logs = await feed.query(feed.options)
       if (logs.length) {
@@ -137,10 +143,14 @@ class LogQuery {
       } else {
         // no more elements, remove feed from feeds
         feeds = feeds.filter(f => f != feed)
-        log.debug('Removing feed', feed.mac || feed.intf || feed.tag || feed.macs )
+        log.debug('Removing feed', feed.query.name, JSON.stringify(feed.options))
       }
 
       feed = options.asc ? _.minBy(feeds, 'options.ts') : _.maxBy(feeds, 'options.ts')
+      if (feed == prevFeed && feed.options.ts == prevTS) {
+        log.error("Looping!!", feed.query.name, feed.options)
+        break
+    }
     }
 
     return results
@@ -164,12 +174,14 @@ class LogQuery {
     return options
   }
 
+
+
   // get logs across different devices
   async getAllLogs(options) {
 
     options = this.checkArguments(options)
 
-    log.debug(this.constructor.name, 'getAllLogs', options)
+    log.debug('----====', this.constructor.name, 'getAllLogs', JSON.stringify(options))
 
     const HostManager = require("../net2/HostManager.js");
     const hostManager = new HostManager();
@@ -186,9 +198,11 @@ class LogQuery {
         allMacs = options.macs;
       }
     } else if (options.tag) {
-      allMacs = hostManager.getTagMacs(options.tag);
+      allMacs = await hostManager.getTagMacs(options.tag);
     } else {
       allMacs = hostManager.getActiveMACs();
+      if (this.includeFirewallaInterfaces())
+        allMacs.push(... sysManager.getLogicInterfaces().map(i => `${Constants.NS_INTERFACE}:${i.uuid}`))
       if (_.isArray(options.macs))
         allMacs = _.uniq(allMacs.concat(options.macs));
     }
@@ -200,6 +214,7 @@ class LogQuery {
     // query less each time to improve perf
     options = Object.assign({count: _.min(Math.round(options.count * 2 / feeds.length), options.count)}, options)
 
+    delete options.macs // for a cleaner debug log
     const allLogs = await this.logFeeder(options, feeds)
 
     const enriched = await this.enrichWithIntel(allLogs);
@@ -210,6 +225,7 @@ class LogQuery {
 
   async enrichWithIntel(logs) {
     return await Promise.map(logs, async f => {
+      if (!f.ip) return f
       // get intel from redis. if failed, create a new one
       const intel = await intelTool.getIntel(f.ip);
 
@@ -241,10 +257,11 @@ class LogQuery {
 
   async getDeviceLogs(options) {
     options = this.checkArguments(options)
+
     const target = options.mac
     if (!target) throw new Error('Invalid device')
 
-    log.debug(this.constructor.name, 'getDeviceLogs', options)
+    log.debug(this.constructor.name, 'getDeviceLogs', JSON.stringify(options))
 
     const key = this.getLogKey(target, options);
 
