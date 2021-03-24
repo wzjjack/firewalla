@@ -48,6 +48,7 @@ const { getPreferredBName } = require('../util/util.js')
 const MAX_IPV6_ADDRESSES = 10
 const MAX_LINKLOCAL_IPV6_ADDRESSES = 3
 const MessageBus = require('../net2/MessageBus.js');
+const INVALID_MAC ='00:00:00:00:00:00';
 
 class DeviceHook extends Hook {
   constructor() {
@@ -189,6 +190,10 @@ class DeviceHook extends Hook {
         let ip = host.ipv4 || host.ipv4Addr;
         host.ipv4 = ip;
         host.ipv4Addr = ip;
+        if (mac == INVALID_MAC) {
+          // Invalid MAC Address
+          return;
+        }
         if (_.isString(host.ipv4)) {
           const intfInfo = sysManager.getInterfaceViaIP4(host.ipv4);
 
@@ -200,7 +205,6 @@ class DeviceHook extends Hook {
             log.error(`Unable to find nif uuid, ${host.ipv4}`);
           }
         }
-
         if (mac != null) {
           this.processDeviceUpdate(event);
         } else {
