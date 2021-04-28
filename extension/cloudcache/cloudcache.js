@@ -88,9 +88,7 @@ class CloudCacheItem {
       log.info(`skip updating, cache ${this.name} is already up to date`);
       return;
     }
-    log.info("jack test goto load from cloud");
     const cloudContent = await this.getCloudData();
-    log.info("jack test cloudMetadata",cloudMetadata);
     await this.writeLocalCacheContent(cloudContent);
     await this.writeLocalMetadata(cloudMetadata);
     if(this.onUpdateCallback) {
