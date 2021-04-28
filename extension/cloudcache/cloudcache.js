@@ -90,7 +90,7 @@ class CloudCacheItem {
     }
     log.info("jack test goto load from cloud");
     const cloudContent = await this.getCloudData();
-    log.info("jack test cloudContent",cloudContent);
+    log.info("jack test cloudMetadata",cloudMetadata);
     await this.writeLocalCacheContent(cloudContent);
     await this.writeLocalMetadata(cloudMetadata);
     if(this.onUpdateCallback) {
