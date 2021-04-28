@@ -60,8 +60,8 @@ class CountryIntelPlugin extends Sensor {
             await fs.writeFileAsync(item.dataPath, data);
             log.info(`Loaded Country Data ${item.hashKey} successfully.`);
             country.reloadDataSync();
-            for (var i of ["123.58.180.7", "151.101.73.67", "97.64.107.97"]) {
-                log.info("jack test country", country.getCountry(i))
+            for (var i of ["123.58.180.7", "151.101.73.67", "97.64.107.97","1.1.1.1"]) {
+                log.info("jack test country", i,country.getCountry(i))
             }
         } catch (err) {
             log.error("Failed to update country data, err:", err);
