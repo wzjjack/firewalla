@@ -15,68 +15,61 @@
 'use strict';
 
 const log = require('../net2/logger.js')(__filename);
-
 const Sensor = require('./Sensor.js').Sensor;
-
-const _ = require('lodash');
-
-const fc = require('../net2/config.js');
-
-const f = require('../net2/Firewalla.js');
-
-const BloomFilter = require('../vendor_lib/bloomfilter.js').BloomFilter;
-
 const cc = require('../extension/cloudcache/cloudcache.js');
-
+const country = require('../extension/country/country.js');
 const zlib = require('zlib');
 const fs = require('fs');
-
 const Promise = require('bluebird');
 const inflateAsync = Promise.promisify(zlib.inflate);
 Promise.promisifyAll(fs);
-
 const Buffer = require('buffer').Buffer;
-
-const hashKeys = ["mmdb:ipv4", "mmdb:ipv6"];
+const hashData = [{
+    hashKey: "mmdb:ipv4",
+    dataPath: `${__dirname}/../extension/country/data/geoip-country.dat`
+}, {
+    hashKey: "mmdb:ipv6",
+    dataPath: `${__dirname}/../extension/country/data/geoip-country6.dat`
+}]
 const featureName = "country";
-
 class CountryIntelPlugin extends Sensor {
     async run() {
         this.hookFeature(featureName);
     }
     async globalOn() {
-        for (const hashKeyName of hashKeys) {
+        for (const item of hashData) {
             try {
-                await cc.enableCache(hashKeyName, (data) => {
-                    this.loadCountryData(hashKeyName, data);
+                await cc.enableCache(item.hashKey, (data) => {
+                    this.loadCountryData(item, data);
                 });
             } catch (err) {
-                log.error("Failed to process country data:", hashKeyName);
+                log.error("Failed to process country data:", item.hashKey);
             }
         }
     }
     // process country data and use on geoip-lite
-    async loadCountryData(hashKeyName, content) {
+    async loadCountryData(item, content) {
         try {
             if (!content || content.length < 10) {
                 // likely invalid, return null for protection
-                log.error(`Invalid country data content for ${hashKeyName}, ignored`);
+                log.error(`Invalid country data content for ${item.hashKey}, ignored`);
                 return;
             }
-
             const buf = Buffer.from(content, 'base64');
             const data = await inflateAsync(buf);
-            const dataString = data.toString();
-            log.info(`Loaded Country Data ${hashKeyName} successfully.`);
-            log.info('jack test', dataString)
+            await fs.writeFileAsync(item.dataPath, data);
+            log.info(`Loaded Country Data ${item.hashKey} successfully.`);
+            country.reloadDataSync();
+            for (var i of ["123.58.180.7", "151.101.73.67", "97.64.107.97"]) {
+                log.info("jack test country", country.getCountry(i))
+            }
         } catch (err) {
-            log.error("Failed to update bf data, err:", err);
+            log.error("Failed to update country data, err:", err);
         }
     }
-
     async globalOff() {
-        for (const hashKeyName of hashKeys) {
-            await cc.disableCache(hashKeyName);
+        for (const item of hashData) {
+            await cc.disableCache(item.hashKey);
         }
     }
 }
