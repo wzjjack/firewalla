@@ -1128,7 +1128,7 @@ class PolicyManager2 {
 
     let { pid, scope, target, action = "block", tag, remotePort, localPort, protocol, direction, upnp, trafficDirection, rateLimit, priority, qdisc, transferredBytes, transferredPackets, avgPacketBytes, wanUUID, routeType, guids, parentRgId, targetRgId, ipttl, seq } = policy;
 
-    if (action !== "block" && action !== "allow" && action !== "qos" && action !== "route" && action !== "match_group") {
+    if (["block", "allow", "qos", "route", "match_group", "alarm"].includes(action)) {
       log.error(`Unsupported action ${action} for policy ${pid}`);
       return;
     }
@@ -1194,10 +1194,10 @@ class PolicyManager2 {
           await ipset.create(remoteSet6, ruleSetTypeMap[type], false);
           await Block.block(target, Block.getDstSet(pid));
         } else {
-          if (["allow", "block"].includes(action)) {
+          if (["allow", "block", "alarm"].includes(action)) {
             // apply to global without specified src/dst port, directly add to global ip or net allow/block set
             const set = (security ? 'sec_' : '' )
-              + (action === "allow" ? 'allow_' : 'block_')
+              + (`${action}_`)
               + (direction === "inbound" ? "ib_" : (direction === "outbound" ? "ob_" : ""))
               + simpleRuleSetMap[type];
             // Block.block will distribute IPv4/IPv6 to corresponding ipset, additional '6' will be added to set name for IPv6 ipset
@@ -1285,12 +1285,12 @@ class PolicyManager2 {
             ipttl: ipttl
           });
         } else {
-          if (["allow", "block"].includes(action)) {
+          if (["allow", "block", "alarm"].includes(action)) {
             const set = (security ? 'sec_' : '' )
-              + (action === "allow" ? 'allow_' : 'block_')
+              + (`${action}_`)
               + (direction === "inbound" ? "ib_" : (direction === "outbound" ? "ob_" : ""))
               + simpleRuleSetMap[type];
-            tlsHostSet = (security ? 'sec_' : '') + (action === "allow" ? 'allow_' : 'block_') + "domain_set";
+            tlsHostSet = (security ? 'sec_' : '') + (`${action}_`) + "domain_set";
             await domainBlock.blockDomain(target, {
               noIpsetUpdate: policy.dnsmasq_only ? true : false,
               exactMatch: policy.domainExactMatch,
