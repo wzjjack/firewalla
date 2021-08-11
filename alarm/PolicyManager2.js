@@ -1443,6 +1443,7 @@ class PolicyManager2 {
       if (!_.isEmpty(parentRgId))
         await Block.setupRuleGroupRules(pid, parentRgId, ... commonArgs);
     } else {
+      log.info("jack test global rules",pid,commonArgs)
       // apply to global
       await Block.setupGlobalRules(pid, ... commonArgs);
     }    
