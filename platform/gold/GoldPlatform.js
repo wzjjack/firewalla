@@ -236,7 +236,7 @@ class GoldPlatform extends Platform {
   }
 
   isTLSBlockSupport() {
-    return true;
+    return false;
   }
 
   getDnsmasqBinaryPath() {
