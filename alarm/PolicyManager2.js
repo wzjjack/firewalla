@@ -1480,7 +1480,7 @@ class PolicyManager2 {
 
     let { pid, scope, target, action = "block", tag, remotePort, localPort, protocol, direction, upnp, trafficDirection, rateLimit, priority, qdisc, transferredBytes, transferredPackets, avgPacketBytes, wanUUID, routeType, guids, parentRgId, targetRgId, seq } = policy;
 
-    if (action !== "block" && action !== "allow" && action !== "qos" && action !== "route" && action !== "match_group") {
+    if (["block", "allow", "qos", "route", "match_group", "alarm"].includes(action)) {
       log.error(`Unsupported action ${action} for policy ${pid}`);
       return;
     }
