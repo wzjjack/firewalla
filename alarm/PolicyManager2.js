@@ -1430,7 +1430,7 @@ class PolicyManager2 {
 
   async __applyRules(options, commonArgs) {
     const {pid, tags, intfs, scope, guids, parentRgId} = options || {};
-    
+    log.info("jack test __applyRules",options,commonArgs)
     if (!_.isEmpty(tags) || !_.isEmpty(intfs) || !_.isEmpty(scope) || !_.isEmpty(guids) || !_.isEmpty(parentRgId)) {
       if (!_.isEmpty(tags))
         await Block.setupTagsRules(pid, tags, ... commonArgs);
@@ -1443,7 +1443,6 @@ class PolicyManager2 {
       if (!_.isEmpty(parentRgId))
         await Block.setupRuleGroupRules(pid, parentRgId, ... commonArgs);
     } else {
-      log.info("jack test global rules",pid,commonArgs)
       // apply to global
       await Block.setupGlobalRules(pid, ... commonArgs);
     }    
