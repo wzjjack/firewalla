@@ -364,7 +364,7 @@ async function setupGlobalRules(pid, localPortSet = null, remoteSet4, remoteSet6
       break;
     }
     case "alarm":{
-      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix 'FW_ALARM_${pid}'`});
+      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix "FW_ALARM_${pid}"`});
       break;
     }
     case "block":
@@ -508,7 +508,7 @@ async function setupGenericIdentitiesRules(pid, guids = [], localPortSet = null,
       break;
     }
     case "alarm":{
-      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix 'FW_ALARM_${pid}'`});
+      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix "FW_ALARM_${pid}"`});
       break;
     }
     case "block":
@@ -664,7 +664,7 @@ async function setupDevicesRules(pid, macAddresses = [], localPortSet = null, re
       break;
     }
     case "alarm":{
-      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix 'FW_ALARM_${pid}'`});
+      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix "FW_ALARM_${pid}"`});
       break;
     }
     case "block":
@@ -833,8 +833,8 @@ async function setupTagsRules(pid, uids = [], localPortSet = null, remoteSet4, r
         break;
       }
       case "alarm":{
-        parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix 'FW_ALARM_${pid}'`, localSet: devSet, localFlagCount: 1});
-        parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix 'FW_ALARM_${pid}'`, localSet: netSet, localFlagCount: 2});
+        parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix "FW_ALARM_${pid}"`, localSet: devSet, localFlagCount: 1});
+        parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix "FW_ALARM_${pid}"`, localSet: netSet, localFlagCount: 2});
         break;
       }
       case "block":
@@ -978,7 +978,7 @@ async function setupIntfsRules(pid, uuids = [], localPortSet = null, remoteSet4,
       break;
     }
     case "alarm":{
-      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix 'FW_ALARM_${pid}'`});
+      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix "FW_ALARM_${pid}"`});
       break;
     }
     case "block":
@@ -1104,7 +1104,7 @@ async function setupRuleGroupRules(pid, ruleGroupUUID, localPortSet = null, remo
       break;
     }
     case "alarm":{
-      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix 'FW_ALARM_${pid}'`});
+      parameters.push({table: "filter", chain: "JACK_TEST", target: `LOG --log-prefix "FW_ALARM_${pid}"`});
       break;
     }
     case "block":
