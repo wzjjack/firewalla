@@ -356,7 +356,7 @@ module.exports = class HostManager {
     const stats = {}
     const metrics = [ 'upload', 'download', 'conn', 'ipB', 'dns', 'dnsB' ]
     for (const metric of metrics) {
-      if (granularities == '1day' && supportTimeSeriesWithTz()) {
+      if (granularities == '1day' && await supportTimeSeriesWithTz()) {
         stats[metric] = await getHitsWithTzAsync(metric + subKey, granularities, hits)
       } else {
         stats[metric] = await getHitsAsync(metric + subKey, granularities, hits)
@@ -408,7 +408,7 @@ module.exports = class HostManager {
     const downloadKey = `download${mac ? ':' + mac : ''}`;
     const uploadKey = `upload${mac ? ':' + mac : ''}`;
     let download, upload
-    if (supportTimeSeriesWithTz()) {
+    if (await supportTimeSeriesWithTz()) {
       download = await getHitsWithTzAsync(downloadKey, '1day', days) || [];
       upload = await getHitsWithTzAsync(uploadKey, '1day', days) || [];
     } else {

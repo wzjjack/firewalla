@@ -38,18 +38,20 @@ timeSeriesWithTz.granularities = {
   '1day': { ttl: timeSeries.weeks(52), duration: timeSeries.days(1) },
   '1month': { ttl: timeSeries.months(24), duration: timeSeries.months(1) }
 }
+
+// set flag
 const timeSeriesWithTzBeginingKey = "time:series:with:tz:ts"
+(async()=>{
+  if ((await rclient.existsAsync(timeSeriesWithTzBeginingKey)) != 1) {
+    await rclient.setAsync(timeSeriesWithTzBeginingKey, new Date() / 1000)
+  }
+})()
 
 module.exports = {
   getTimeSeries: function () { return timeSeries },
   getBoneAPITimeSeries: function () { return boneAPITimeSeries },
-  getTimeSeriesWithTz: function () {
-    if ((await rclient.existsAsync(timeSeriesWithTzBeginingKey)) != 1) {
-      await rclient.setAsync(timeSeriesWithTzBeginingKey, new Date() / 1000)
-    }
-    return timeSeriesWithTz
-  },
-  supportTimeSeriesWithTz: function () {
+  getTimeSeriesWithTz: function () {return timeSeriesWithTz },
+  supportTimeSeriesWithTz: async function () {
     if ((await rclient.keysAsync("timedTraffic:download:1minute*")).length < 2) {
       // it is very new box which install within 65 mins
       return true
