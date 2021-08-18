@@ -40,7 +40,7 @@ timeSeriesWithTz.granularities = {
 }
 
 // set flag
-const timeSeriesWithTzBeginingKey = "time:series:with:tz:ts"
+const timeSeriesWithTzBeginingKey = "time:series:with:tz:ts";
 (async()=>{
   if ((await rclient.existsAsync(timeSeriesWithTzBeginingKey)) != 1) {
     await rclient.setAsync(timeSeriesWithTzBeginingKey, new Date() / 1000)
