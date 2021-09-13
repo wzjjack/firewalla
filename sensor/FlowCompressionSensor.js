@@ -18,45 +18,125 @@ const flowTool = require('../net2/FlowTool');
 const log = require('../net2/logger.js')(__filename)
 const _ = require('lodash');
 const Sensor = require('./Sensor.js').Sensor
-const featureName = 'fastflow'
+const fc = require('../net2/config.js');
+const featureName = 'compress_flows'
 const Promise = require('bluebird');
 const zlib = require('zlib');
+const extensionManager = require('./ExtensionManager.js')
+const { rclient } = require('../util/redis_manager');
 const deflateAsync = Promise.promisify(zlib.deflate);
 
 class FlowCompressionSensor extends Sensor {
   constructor() {
-    super();
+    super()
+    this.recentlyTickKey = "compressed:flows:lastest:ts"
+    this.step = 60 * 60 // one hour
+    this.maxInterval = 24 * 60 * 60 // 24 hours
   }
 
-  async loadFlows() {
+  async run() {
+    await this.build()
+    setInterval(async () => {
+      await this.build()
+    }, 30 * 60 * 1000);
+  }
+
+  async apiRun() {
+    extensionManager.onGet("compressedflows", (msg, data) => {
+      return this.loadCompressedFlows(data)
+    });
+  }
+
+  async loadCompressedFlows(options) {
+    // options {begin,end}
+    let { begin, end } = options
+    begin = begin - begin % this.step
+    end = end - end % this.step
+    log.info(`Load compressed flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
+    const compressedFlows = []
+    for (let i = 0; i < (end - begin) / this.step; i++) {
+      const beginTs = begin + this.step * i
+      const endTs = begin + this.step * (i + 1)
+      const str = await rclient.getAsync(this.getKey(beginTs, endTs))
+      str && compressedFlows.push(str)
+    }
+    return compressedFlows
+  }
+
+  getKey(begin, end) {
+    return `compressed:flows:${begin}:${end}`
+  }
+
+  async build() {
+    if (!fc.isFeatureOn(featureName)) {
+      log.info(`${featureName} feature is disabled.`)
+      return
+    }
+    const { begin, end } = await this.getBuildingWindow()
+    log.info(`Going to compress flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
+    try {
+      for (let i = 0; i < (end - begin) / this.step; i++) {
+        const beginTs = begin + this.step * i
+        const endTs = begin + this.step * (i + 1)
+        const flows = await this.loadFlows(beginTs, endTs)
+        await this.save(beginTs, endTs, flows)
+      }
+      await rclient.setAsync(this.recentlyTickKey, end)
+    } catch (e) {
+      log.warn(`Compress flows error`, e)
+    }
+  }
+
+  async save(begin, end, flows) { // might save to disk in future
+    const base64Str = await this.compress(flows)
+    const key = this.getKey(begin, end)
+    await rclient.setAsync(key, base64Str)
+    await rclient.expireatAsync(key, end + this.maxInterval)
+  }
+
+  async getBuildingWindow() {
+    const now = new Date() / 1000
+    const nowTickTs = now - now % this.step
+    let recentlyTickTs = await rclient.getAsync(this.recentlyTickKey) || 0
+    if (nowTickTs - recentlyTickTs > this.maxInterval) {
+      recentlyTickTs = nowTickTs - this.maxInterval
+    }
+    return {
+      begin: Number(recentlyTickTs),
+      end: nowTickTs
+    }
+  }
+
+  async loadFlows(begin, end) {
+    log.info(`Going to load flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
     let completed = false
     const options = {
-      begin: new Date() / 1000 - 24 * 3600, // 24 hours before
+      begin: begin,
+      end: end,
       audit: true,
       count: 2000,
       asc: true
     }
     let allFlows = []
-    const begin = new Date() / 1000
+    const now = new Date() / 1000
     while (!completed) {
-      console.log(`processing get flows now:${new Date()} begin time:${new Date(options.begin * 1000)}`)
-      const flows = await flowTool.prepareRecentFlows({}, JSON.parse(JSON.stringify(options))) || []
-      console.log(`got flows length ${flows.length}`)
-      console.log(`fisrt one${new Date(flows[0].ts * 1000)}, last one ${new Date(flows[flows.length - 1].ts * 1000)}`)
-      if (flows.length < options.count) {
+      try {
+        const flows = await flowTool.prepareRecentFlows({}, JSON.parse(JSON.stringify(options))) || []
+        if (flows.length < options.count) {
+          completed = true
+        } else {
+          options.begin = flows[flows.length - 1].ts
+        }
+        allFlows = allFlows.concat(flows)
+      } catch (e) {
+        log.warn(`Load flows error`, e)
         completed = true
-      } else {
-        options.begin = flows[flows.length - 1].ts
       }
-      allFlows = allFlows.concat(flows)
     }
-    log.info(`get ${allFlows.length} flows cost ${(new Date() / 1000 - begin).toFixed(2)} seconds`)
-    var total = 0;
-    allFlows.map(flow => {
-      total = total + flow.count
-    })
-    log.info("jack test lalalal", total)
-    this.compress(allFlows)
+    log.debug(`get ${allFlows.length} flows cost ${(new Date() / 1000 - now).toFixed(2)} seconds`)
+    // debug purpose
+    log.debug(`there are ${allFlows.reduce((ac, val) => ac + val.count, 0)} zeek logs for these flows`)
+    return allFlows
   }
 
   mergeFlows(flows) {
@@ -78,18 +158,18 @@ class FlowCompressionSensor extends Sensor {
     }
     return mergedFlows
   }
-
   async compress(flows) {
     const mergedFlows = this.mergeFlows(flows)
     const str = JSON.stringify(mergedFlows)
     const deflateBuffer = await deflateAsync(str)
     const base64Str = deflateBuffer.toString('base64')
-    log.info(`Compress ${mergedFlows.length} flows, 
-    raw: ${Buffer.byteLength(str)} deflate: ${Buffer.byteLength(deflateBuffer)} ${deflateBuffer.length} 
-    base64:${Buffer.byteLength(base64Str)} ${deflateBuffer.toString('base64').length}`)
+    log.debug(`Compress ${mergedFlows.length} flows, raw: ${str.length} deflate: ${deflateBuffer.length} base64:${base64Str.length}`)
+    return base64Str
   }
 }
+// setTimeout(() => {
+//   new FlowCompressionSensor().run()
+// }, 10 * 1000)
 
-new FlowCompressionSensor().loadFlows()
 
 module.exports = FlowCompressionSensor;
