@@ -67,11 +67,30 @@ class FlowCompressionSensor extends Sensor {
     return `compressed:flows:${begin}:${end}`
   }
 
-  async build() {
+  async sensorCheck() {
     if (!fc.isFeatureOn(featureName)) {
       log.info(`${featureName} feature is disabled.`)
-      return
+      return false
     }
+    const members = await rclient.smembersAsync("sys:ept:members")
+    if (members && members.length > 0) {
+      const webEnabled = members.map((m) => {
+        try {
+          return JSON.parse(m)
+        } catch (err) {
+          return null
+        }
+      }).filter((x) => x != null && x.name == 'firewalla_web').length > 0
+      if (!webEnabled) {
+        log.info(`firewalla_web haven't enabled`)
+      }
+      return webEnabled
+    }
+    return false
+  }
+
+  async build() {
+    if (! await this.sensorCheck()) return
     const { begin, end } = await this.getBuildingWindow()
     log.info(`Going to compress flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
     try {
@@ -167,9 +186,6 @@ class FlowCompressionSensor extends Sensor {
     return base64Str
   }
 }
-// setTimeout(() => {
-//   new FlowCompressionSensor().run()
-// }, 10 * 1000)
 
 
 module.exports = FlowCompressionSensor;
