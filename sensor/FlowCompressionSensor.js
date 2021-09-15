@@ -37,7 +37,7 @@ class FlowCompressionSensor extends Sensor {
   async run() {
     setTimeout(async () => {
       await this.build()
-    }, 10 * 1000) // first time in 10s
+    }, 1 * 1000) // first time in 10s
     setInterval(async () => {
       await this.build()
     }, 30 * 60 * 1000);

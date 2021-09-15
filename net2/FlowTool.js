@@ -101,8 +101,9 @@ class FlowTool extends LogQuery {
     log.verbose('prepareRecentFlows', JSON.stringify(options))
     options = options || {}
     this.checkCount(options)
+    log.info("jack test expendMacs")
     options.macs = await this.expendMacs(options)
-
+    log.info("jack test expendMacs done")
     if (!("flows" in json)) {
       json.flows = {};
     }
