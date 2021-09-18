@@ -37,19 +37,17 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async run() {
-    sem.once('GetHostsAsync:Done', async () => {
+    await this.build()
+    setInterval(async () => {
       await this.build()
-      setInterval(async () => {
-        await this.build()
-      }, 30 * 60 * 1000);
-    })
+    }, 30 * 60 * 1000);
   }
 
   async calMem() {
     try {
       log.info("jack test start calMem")
       let compressedMem = 0
-      const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 10000)
+      const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 1000)
       log.info("jack test start calMem scanResults", compressedFlowsKeys)
       for (const key of compressedFlowsKeys) {
         const mem = Number(await rclient.memoryAsync("usage", key) || 0)
