@@ -34,12 +34,10 @@ class FlowCompressionSensor extends Sensor {
     this.recentlyTickKey = "compressed:flows:lastest:ts"
     this.step = 60 * 60 // one hour
     this.maxInterval = 24 * 60 * 60 // 24 hours
-    this.compressedMem = 0
   }
 
   async run() {
-    sem.once('IPTABLES_READY', async () => {
-      await this.calMem()
+    sem.once('GetHostsAsync:Done', async () => {
       await this.build()
       setInterval(async () => {
         await this.build()
@@ -48,14 +46,20 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async calMem() {
-    log.info("jack test start calMem")
-    const compressedFlowsKeys = await rclient.keysAsync("compressed:flows:*")
-    log.info("jack test start calMem klekeysys", compressedFlowsKeys)
-    for (const key of compressedFlowsKeys) {
-      const mem = Number(await rclient.memoryAsync("usage", key) || 0)
-      this.compressedMem += mem
+    try {
+      log.info("jack test start calMem")
+      let compressedMem = 0
+      const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"))
+      log.info("jack test start calMem scanResults", compressedFlowsKeys)
+      for (const key of compressedFlowsKeys) {
+        const mem = Number(await rclient.memoryAsync("usage", key) || 0)
+        compressedMem += mem
+      }
+      log.info("jack test this.compressedMem", compressedMem)
+      return compressedMem
+    } catch (e) {
+      return 0
     }
-    log.info("jack test this.compressedMem", this.compressedMem)
   }
 
   async apiRun() {
@@ -128,11 +132,11 @@ class FlowCompressionSensor extends Sensor {
   async save(begin, end, flows) { // might save to disk in future
     const base64Str = await this.compress(flows)
     const key = this.getKey(begin, end)
-    this.compressedMem += base64Str.length
+    const compressedMem = await this.calMem()
     await rclient.setAsync(key, base64Str)
-    log.info("jack test this.compressedMem", this.compressedMem)
+    log.info("jack test this.compressedMem", compressedMem)
     // reduce ttl if compressedMem bigger than MAX_MEM
-    const ttl = this.compressedMem > MAX_MEM ? this.maxInterval / 4 : this.maxInterval
+    const ttl = compressedMem > MAX_MEM ? this.maxInterval / 4 : this.maxInterval
     await rclient.expireatAsync(key, end + ttl)
   }
 

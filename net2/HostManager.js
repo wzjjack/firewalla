@@ -1528,6 +1528,10 @@ module.exports = class HostManager {
       const Dnsmasq = require('../extension/dnsmasq/dnsmasq.js');
       const dnsmasq = new Dnsmasq();
       dnsmasq.onDHCPReservationChanged(); // trigger dhcp hosts file update
+
+      sem.emitEvent({
+        type: "GetHostsAsync:Done"
+      });
     }
     return this.hosts.all;
   }
