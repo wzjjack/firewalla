@@ -49,7 +49,7 @@ class FlowCompressionSensor extends Sensor {
     try {
       log.info("jack test start calMem")
       let compressedMem = 0
-      const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"))
+      const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 10000)
       log.info("jack test start calMem scanResults", compressedFlowsKeys)
       for (const key of compressedFlowsKeys) {
         const mem = Number(await rclient.memoryAsync("usage", key) || 0)
