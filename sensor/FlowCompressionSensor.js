@@ -45,21 +45,25 @@ class FlowCompressionSensor extends Sensor {
     })
   }
 
-  async calMem() {
-    try {
-      log.info("jack test start calMem")
-      let compressedMem = 0
-      const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 1000)
-      log.info("jack test start calMem scanResults", compressedFlowsKeys)
-      for (const key of compressedFlowsKeys) {
-        const mem = Number(await rclient.memoryAsync("usage", key) || 0)
-        compressedMem += mem
+  async checkAndCleanMem() {
+    log.info("jack test start calMem")
+    let compressedMem = 0
+    let oldestKey
+    const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 1000)
+    log.info("jack test start calMem scanResults", compressedFlowsKeys)
+    for (const key of compressedFlowsKeys) {
+      const mem = Number(await rclient.memoryAsync("usage", key) || 0)
+      compressedMem += mem
+      if (!oldestKey) {
+        oldestKey = key
+      } else if (await rclient.ttlAsync(key) < await rclient.ttlAsync(oldestKey)) {
+        oldestKey = key
       }
-      log.info("jack test this.compressedMem", compressedMem)
-      return compressedMem
-    } catch (e) {
-      return 0
     }
+    if (compressedMem > MAX_MEM) { // del the oldest key
+      await rclient.delAsync(oldestKey)
+    }
+    log.info("jack test this.compressedMem", oldestKey, compressedMem)
   }
 
   async apiRun() {
@@ -132,12 +136,9 @@ class FlowCompressionSensor extends Sensor {
   async save(begin, end, flows) { // might save to disk in future
     const base64Str = await this.compress(flows)
     const key = this.getKey(begin, end)
-    const compressedMem = await this.calMem()
     await rclient.setAsync(key, base64Str)
-    log.info("jack test this.compressedMem", compressedMem)
-    // reduce ttl if compressedMem bigger than MAX_MEM
-    const ttl = compressedMem > MAX_MEM ? this.maxInterval / 4 : this.maxInterval
-    await rclient.expireatAsync(key, end + ttl)
+    await rclient.expireatAsync(key, end + this.maxInterval)
+    await this.checkAndCleanMem()
   }
 
   async getBuildingWindow() {
