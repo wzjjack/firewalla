@@ -25,6 +25,7 @@ const zlib = require('zlib');
 const extensionManager = require('./ExtensionManager.js')
 const { rclient } = require('../util/redis_manager');
 const deflateAsync = Promise.promisify(zlib.deflate);
+const sem = require('./SensorEventManager.js').getInstance();
 
 class FlowCompressionSensor extends Sensor {
   constructor() {
