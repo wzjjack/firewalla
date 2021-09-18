@@ -35,12 +35,12 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async run() {
-    setTimeout(async () => {
+    sem.once('IPTABLES_READY', async () => {
       await this.build()
-    }, 1 * 1000) // first time in 10s
-    setInterval(async () => {
-      await this.build()
-    }, 30 * 60 * 1000);
+      setInterval(async () => {
+        await this.build()
+      }, 30 * 60 * 1000);
+    })
   }
 
   async apiRun() {
