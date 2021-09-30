@@ -37,12 +37,18 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async run() {
-    sem.once('IPTABLES_READY', async () => {
+    this.hookFeature(featureName);
+  }
+
+  async globalOn() {
+    await this.build()
+    this.timer = setInterval(async () => {
       await this.build()
-      setInterval(async () => {
-        await this.build()
-      }, 30 * 60 * 1000);
-    })
+    }, 30 * 60 * 1000);
+  }
+
+  async globalOff() {
+    if (this.timer) clearInterval(this.timer);
   }
 
   async checkAndCleanMem() {
@@ -96,31 +102,8 @@ class FlowCompressionSensor extends Sensor {
     return `compressed:flows:${begin}:${end}`
   }
 
-  async sensorCheck() {
-    if (!fc.isFeatureOn(featureName)) {
-      log.info(`${featureName} feature is disabled.`)
-      return false
-    }
-    const members = await rclient.smembersAsync("sys:ept:members")
-    if (members && members.length > 0) {
-      const webEnabled = members.map((m) => {
-        try {
-          return JSON.parse(m)
-        } catch (err) {
-          return null
-        }
-      }).filter((x) => x != null && x.name == 'firewalla_web').length > 0
-      if (!webEnabled) {
-        log.info(`firewalla_web haven't enabled`)
-      }
-      return webEnabled
-    }
-    return false
-  }
-
   async build() {
     try {
-      if (! await this.sensorCheck()) return
       const { begin, end } = await this.getBuildingWindow()
       const now = new Date() / 1000
       log.info(`Going to compress flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
