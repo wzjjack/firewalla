@@ -103,6 +103,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async build() {
+    this.processFlowsCnt = 0
     try {
       const { begin, end } = await this.getBuildingWindow()
       const now = new Date() / 1000
@@ -114,7 +115,7 @@ class FlowCompressionSensor extends Sensor {
         await this.save(beginTs, endTs, flows)
       }
       await rclient.setAsync(this.recentlyTickKey, end)
-      log.info(`Compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
+      log.info(`Compressed ${this.processFlowsCnt} flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     } catch (e) {
       log.error(`Compress flows error`, e)
     }
@@ -167,9 +168,7 @@ class FlowCompressionSensor extends Sensor {
         completed = true
       }
     }
-    log.debug(`get ${allFlows.length} flows cost ${(new Date() / 1000 - now).toFixed(2)} seconds`)
-    // debug purpose
-    log.debug(`there are ${allFlows.reduce((ac, val) => ac + val.count, 0)} zeek logs for these flows`)
+    this.processFlowsCnt += allFlows.reduce((ac, val) => ac + val.count, 0)
     return allFlows
   }
 
