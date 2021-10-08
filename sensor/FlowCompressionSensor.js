@@ -32,8 +32,9 @@ class FlowCompressionSensor extends Sensor {
   constructor() {
     super()
     this.recentlyTickKey = "compressed:flows:lastest:ts"
-    this.step = 60 * 60 // one hour
-    this.maxInterval = 24 * 60 * 60 // 24 hours
+    this.interval = this.config.interval || 15 * 60
+    this.step = this.config.step || 30 * 60 // half an hour
+    this.maxInterval = this.config.maxInterval || 24 * 60 * 60 // 24 hours
   }
 
   async run() {
@@ -44,7 +45,7 @@ class FlowCompressionSensor extends Sensor {
     await this.build()
     this.timer = setInterval(async () => {
       await this.build()
-    }, 30 * 60 * 1000);
+    }, this.interval * 1000);
   }
 
   async globalOff() {
@@ -104,8 +105,10 @@ class FlowCompressionSensor extends Sensor {
 
   async build() {
     this.processFlowsCnt = 0
+    this.processLogsCnt = 0
     try {
       const { begin, end } = await this.getBuildingWindow()
+      if (begin == end) return
       const now = new Date() / 1000
       log.info(`Going to compress flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
       for (let i = 0; i < (end - begin) / this.step; i++) {
@@ -115,18 +118,20 @@ class FlowCompressionSensor extends Sensor {
         await this.save(beginTs, endTs, flows)
       }
       await rclient.setAsync(this.recentlyTickKey, end)
-      log.info(`Compressed ${this.processFlowsCnt} flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
+      await this.checkAndCleanMem()
+      log.info(`Compressed ${this.processFlowsCnt} flows, ${this.processLogsCnt} logs build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     } catch (e) {
       log.error(`Compress flows error`, e)
     }
   }
 
   async save(begin, end, flows) { // might save to disk in future
+    const now = new Date() / 1000
     const base64Str = await this.compress(flows)
     const key = this.getKey(begin, end)
     await rclient.setAsync(key, base64Str)
     await rclient.expireatAsync(key, end + this.maxInterval)
-    await this.checkAndCleanMem()
+    log.info(`Save ${flows.length} flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
   }
 
   async getBuildingWindow() {
@@ -168,7 +173,9 @@ class FlowCompressionSensor extends Sensor {
         completed = true
       }
     }
-    this.processFlowsCnt += allFlows.reduce((ac, val) => ac + val.count, 0)
+    this.processLogsCnt += allFlows.reduce((ac, val) => ac + val.count, 0)
+    this.processFlowsCnt += allFlows.length
+    log.info(`Load ${allFlows.length} flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
     return allFlows
   }
 
