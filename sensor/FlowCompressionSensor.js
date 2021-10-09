@@ -32,6 +32,7 @@ class FlowCompressionSensor extends Sensor {
   constructor() {
     super()
     this.recentlyTickKey = "compressed:flows:lastest:ts"
+    log.info("jack test", this.config)
     this.interval = this.config.interval || 15 * 60
     this.step = this.config.step || 30 * 60 // half an hour
     this.maxInterval = this.config.maxInterval || 24 * 60 * 60 // 24 hours
