@@ -84,17 +84,31 @@ class FlowCompressionSensor extends Sensor {
       const result = {}
       const now = new Date() / 1000
       await Promise.all([
-        async () => {
-          return result["compressedflows"] = await this.loadCompressedFlows(data)
-        },
-        async () => {
-          const recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
-          let { begin, end } = data;
-          if (begin < recentlyTickTs) {
-            begin = recentlyTickTs
+        new Promise((resolve) => {
+          try {
+            result["compressedflows"] = await this.loadCompressedFlows(data)
+            resolve()
+          } catch (e) {
+            log.warn("get compressed flows error", e)
+            result["compressedflows"] = []
+            resolve()
           }
-          return result["flows"] = this.mergeFlows(await this.loadFlows(begin, end))
-        }])
+        }),
+        new Promise((resolve) => {
+          try {
+            const recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
+            let { begin, end } = data;
+            if (begin < recentlyTickTs) {
+              begin = recentlyTickTs
+            }
+            result["flows"] = this.mergeFlows(await this.loadFlows(begin, end))
+            resolve()
+          } catch (e) {
+            log.warn("get flows error", e)
+            result["flows"] = []
+            resolve()
+          }
+        })])
       log.info(`Get flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
       return result
     });
