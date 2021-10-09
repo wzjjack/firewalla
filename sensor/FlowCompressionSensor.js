@@ -42,6 +42,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async globalOn() {
+    log.info("jack test global on")
     await this.build()
     this.timer = setInterval(async () => {
       await this.build()
@@ -123,6 +124,7 @@ class FlowCompressionSensor extends Sensor {
     this.processLogsCnt = 0
     try {
       const { begin, end } = await this.getBuildingWindow()
+      log.info("jack test build", begin, end)
       if (begin == end) return
       const now = new Date() / 1000
       log.info(`Going to compress flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
@@ -153,6 +155,7 @@ class FlowCompressionSensor extends Sensor {
     const now = new Date() / 1000
     const nowTickTs = now - now % this.step
     let recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
+    log.info("jack test", nowTickTs, recentlyTickTs, this.step, this.maxInterval, this.interval)
     if (nowTickTs - recentlyTickTs > this.maxInterval) {
       recentlyTickTs = nowTickTs - this.maxInterval
     }
