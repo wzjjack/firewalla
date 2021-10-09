@@ -181,7 +181,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async loadFlows(begin, end) {
-    log.debug(`Going to load flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
+    log.info(`Going to load flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
     let completed = false
     const options = {
       begin: begin,
@@ -208,7 +208,7 @@ class FlowCompressionSensor extends Sensor {
     }
     this.processLogsCnt += allFlows.reduce((ac, val) => ac + val.count, 0)
     this.processFlowsCnt += allFlows.length
-    log.debug(`Load ${allFlows.length} flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
+    log.info(`Load ${allFlows.length} flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
     return allFlows
   }
 
