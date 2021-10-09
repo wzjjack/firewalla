@@ -85,7 +85,7 @@ class FlowCompressionSensor extends Sensor {
       const now = new Date() / 1000
       await Promise.all([
         async () => {
-          result["compressedflows"] = await this.loadCompressedFlows(data)
+          return result["compressedflows"] = await this.loadCompressedFlows(data)
         },
         async () => {
           const recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
@@ -93,7 +93,7 @@ class FlowCompressionSensor extends Sensor {
           if (begin < recentlyTickTs) {
             begin = recentlyTickTs
           }
-          result["flows"] = this.mergeFlows(await this.loadFlows(begin, end))
+          return result["flows"] = this.mergeFlows(await this.loadFlows(begin, end))
         }])
       log.info(`Get flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
       return result
