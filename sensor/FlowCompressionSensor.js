@@ -82,7 +82,7 @@ class FlowCompressionSensor extends Sensor {
   async apiRun() {
     extensionManager.onGet("compressedflows", async (msg, data) => {
       const result = {}
-      const now = new Date()
+      const now = new Date() / 1000
       await Promise.all([
         async () => {
           result["compressedflows"] = await this.loadCompressedFlows(data)
@@ -134,8 +134,8 @@ class FlowCompressionSensor extends Sensor {
         const endTs = begin + this.step * (i + 1)
         const flows = await this.loadFlows(beginTs, endTs)
         await this.save(beginTs, endTs, flows)
+        await rclient.setAsync(this.recentlyTickKey, endTs)
       }
-      await rclient.setAsync(this.recentlyTickKey, end)
       await this.checkAndCleanMem()
       log.info(`Compressed ${this.processFlowsCnt} flows, ${this.processLogsCnt} logs build completed, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     } catch (e) {
