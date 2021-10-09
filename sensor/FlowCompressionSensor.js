@@ -78,7 +78,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async apiRun() {
-    extensionManager.onGet("compressedflows", (msg, data) => {
+    extensionManager.onGet("compressedflows", async (msg, data) => {
       const result = {}
       const now = new Date()
       await Promise.all([
