@@ -16,7 +16,7 @@
 const Promise = require('bluebird');
 const zlib = require('zlib');
 const deflateAsync = Promise.promisify(zlib.deflate);
-const { Readable, Writable } = require('stream');
+const { Readable, Writable, Duplex } = require('stream');
 const fs = require('fs');
 // (async () => {
 //   // Node.js program to demonstrate the     
@@ -116,42 +116,72 @@ const fs = require('fs');
   const deflateBuffer = await deflateAsync(str)
   const base64Str = deflateBuffer.toString('base64')
   console.log('compressed size deflateBuffer and base64str', deflateBuffer.length, base64Str.length);
+  // (async () => {
+  //   console.log('func1');
+  //   const outStream = new Writable({
+  //     write() { }
+  //   })
+  //   const inStream = new Readable({
+  //     read() { }
+  //   });
+  //   var t = 0;
+  //   for (const f of testData) {
+  //     // setTimeout(() => {
+  //     //   inStream.push(JSON.stringify(f))
+  //     // }, t * 1000)
+  //     // t = t + 10
+  //     inStream.push(JSON.stringify(f))
+  //   }
+  //   // inStream.push(null)
+  //   // // Creating writable stream
+  //   // const out = fs.createWriteStream('input1.txt');
+
+  //   // // Calling createDeflate method
+  //   // const def = zlib.createDeflate();
+
+  //   // // Piping
+  //   // inStream.pipe(def).pipe(out);
+  //   // console.log("Program Completed!");
+  //   // setTimeout(() => {
+  //   //   inStream.push(null)
+  //   // }, 1 * 60 * 60 * 1000)
+  //   inStream.push(null)
+
+  //   console.log("jack test goto defalte");
+  //   const def = zlib.createDeflate();
+  //   // inStream.pipe(zlib.createDeflate).pipe(outStream)
+  //   const buff = inStream.pipe(def).pipe(process.stdout)
+  //   console.log("jack test buff", buff.length)
+  //   console.log("jack test tostring", buff.toString('base64').length)
+  // })();
+
   (async () => {
-    console.log('func1');
-    const outStream = new Writable({
-      write() { }
+    console.log('func222');
+    var test = "";
+    const inoutStream = new Duplex({
+      write(chunk, encoding, callback) {
+        test += chunk.toString('base64');
+        console.log("jack test lalalala",test.length)
+        callback();
+      },
+      _read() { }
     })
-    const inStream = new Readable({
-      read() { }
-    });
     var t = 0;
     for (const f of testData) {
-      // setTimeout(() => {
-      //   inStream.push(JSON.stringify(f))
-      // }, t * 1000)
-      // t = t + 10
-      inStream.push(JSON.stringify(f))
+      inoutStream.push(JSON.stringify(f))
+      inoutStream.resume()
     }
-    inStream.push(null)
-    // Creating writable stream
-    const out = fs.createWriteStream('input1.txt');
 
-    // Calling createDeflate method
+    setTimeout(() => {
+      inoutStream.push(null)
+    }, 10 * 1000);
+
+    console.log("jack test goto defalte");
     const def = zlib.createDeflate();
-
-    // Piping
-    inStream.pipe(def).pipe(out);
-    console.log("Program Completed!");
-    // setTimeout(() => {
-    //   inStream.push(null)
-    // }, 1 * 60 * 60 * 1000)
-    // inStream.push(null)
-
-    // console.log("jack test goto defalte")
     // inStream.pipe(zlib.createDeflate).pipe(outStream)
-    // const buff = inStream.pipe(zlib.createDeflate).pipe(process.stdout)
-    // console.log("jack test buff", buff.length)
-    // console.log("jack test tostring", buff.toString('base64').length)
+    const buff = inoutStream.pipe(def).pipe(inoutStream)
+    console.log("jack test buff", buff.length)
+    console.log("jack test tostring", buff.toString('base64').length)
   })()
 
 })()
