@@ -80,6 +80,11 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async apiRun() {
+    extensionManager.onGet("compressedLastestTs", async (msg, data) => {
+      const recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
+      return { ts: recentlyTickTs }
+    })
+
     extensionManager.onGet("compressedflows", async (msg, data) => {
       const result = {}
       const now = new Date() / 1000
