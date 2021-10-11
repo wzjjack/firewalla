@@ -119,6 +119,7 @@ class FlowCompressionSensor extends Sensor {
     let { begin, end } = options
     begin = begin - begin % this.step
     end = end - end % this.step
+    if (begin == end) return []
     log.info(`Load compressed flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
     const compressedFlows = []
     for (let i = 0; i < (end - begin) / this.step; i++) {
