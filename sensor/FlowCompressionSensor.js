@@ -99,8 +99,8 @@ class FlowCompressionSensor extends Sensor {
     this.def.flush()
     while (this.streamEventId) {
       await delay(3000); // make sure last event done
-      this.streamEventId = uuid.v4()
     }
+    this.streamEventId = uuid.v4()
     log.info("jack test this.streamEventId", this.streamEventId)
     const result = await new Promise((resolve, reject) => {
       let handled = false;
@@ -115,7 +115,7 @@ class FlowCompressionSensor extends Sensor {
         if (!handled) {
           handled = true;
           log.info("timeout")
-          this.em.removeListener(this.id, callback);
+          this.em.removeListener(this.streamEventId, callback);
           resolve(null);
         }
       }, 30 * 1000);
