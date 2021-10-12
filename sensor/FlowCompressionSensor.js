@@ -67,7 +67,6 @@ class FlowCompressionSensor extends Sensor {
       log.info("jack test write", this.compressedFlowsFromStream.length)
       if (this.em && this.streamEventId) {
         this.em.emit(this.streamEventId, this.compressedFlowsFromStream)
-        this.streamEventId = null;
       }
       next()
     }
@@ -80,8 +79,10 @@ class FlowCompressionSensor extends Sensor {
         this.inoutStream.push(JSON.stringify(flow));
         if (this.buffer > 10 * 16 * 1024) {
           log.info("jack test read 10 times of flows")
+          this.buffer = 0;
           this.inoutStream.pause() // pause
           const compressedStr = await this.getCompressedFlowsFromStream();
+          log.info("jack test compressedStr", compressedStr)
           await this.save(flow.ts, compressedStr);
           this.inoutStream.resume();
         }
@@ -121,6 +122,7 @@ class FlowCompressionSensor extends Sensor {
       }, 30 * 1000);
       this.em.once(this.streamEventId, callback)
     })
+    this.streamEventId = null;
     return result
   }
 
