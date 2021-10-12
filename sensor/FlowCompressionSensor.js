@@ -15,6 +15,7 @@
 'use strict';
 
 const flowTool = require('../net2/FlowTool');
+const auditTool = require('../net2/AuditTool');
 const log = require('../net2/logger.js')(__filename)
 const _ = require('lodash');
 const Sensor = require('./Sensor.js').Sensor
@@ -23,19 +24,23 @@ const featureName = 'compress_flows'
 const Promise = require('bluebird');
 const zlib = require('zlib');
 const extensionManager = require('./ExtensionManager.js')
-const { rclient } = require('../util/redis_manager');
+const rclient = require('../util/redis_manager').getRedisClient();
+const sclient = require('../util/redis_manager.js').getSubscriptionClient()
 const deflateAsync = Promise.promisify(zlib.deflate);
 const sem = require('./SensorEventManager.js').getInstance();
-const MAX_MEM = 10 * 1000 * 1000
+const { Duplex } = require('stream');
+const EventEmitter = require('events');
+const MAX_MEM = 10 * 1000 * 1000;
+const delay = require('../util/util.js').delay;
+const uuid = require('uuid');
 
 class FlowCompressionSensor extends Sensor {
   constructor() {
     super()
-    this.recentlyTickKey = "compressed:flows:lastest:ts"
-    log.info("jack test", this.config)
-    this.interval = this.config.interval || 15 * 60
+    this.lastestTsKey = "compressed:flows:lastest:ts"
     this.step = this.config.step || 30 * 60 // half an hour
     this.maxInterval = this.config.maxInterval || 24 * 60 * 60 // 24 hours
+    this.maxBufferSize = 10000
   }
 
   async run() {
@@ -43,77 +48,114 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async globalOn() {
-    log.info("jack test global on")
-    await this.build()
-    this.timer = setInterval(async () => {
-      await this.build()
-    }, this.interval * 1000);
+    const now = new Date() / 1000
+    await this.setupStream()
+    await this.build(now)
+  }
+
+  async setupStream() {
+    sclient.subscribe("Flows2Stream")
+    this.em = new EventEmitter();
+    this.compressedFlowsFromStream = "";
+    this.inoutStream = new Duplex()
+    this.inoutStream._read = () => { }
+    this.inoutStream._write = (chunk, encoding, next) => {
+      this.compressedFlowsFromStream += chunk.toString('base64');
+      if (this.em && this.streamEventId) {
+        this.em.emit(this.streamEventId, this.compressedFlowsFromStream)
+        this.streamEventId = null;
+      }
+      next();
+    }
+    this.def = zlib.createDeflate();
+    this.streamBuffer = 0;
+    sclient.on("message", async (channel, message) => {
+      message = JSON.parse(message)
+      if (channel === "Flow2Stream") {
+        log.info("jack test Flow2Stream come in")
+        this.streamBuffer = this.streamBuffer + 1;
+        const flow = await this.raw2Flow(message);
+        if (!this.streamBeginTs) {
+          this.streamBeginTs = flow.ts
+        }
+        this.streamEndTs = flow.ts
+        this.inoutStream.push(JSON.stringify(flow));
+        if (this.streamBuffer > this.maxBufferSize) {
+          const compressedStr = await this.getCompressedFlowsFromStream();
+          await this.save(this.streamBeginTs, this.streamEndTs, compressedStr);
+          this.streamBuffer = 0;
+        }
+        log.info("jack test Flow2Stream come out")
+      }
+    });
+  }
+
+  async getCompressedFlowsFromStream() {
+    /* 
+      Calling .flush() on a compression stream will make zlib return as much output as currently possible. 
+      This may come at the cost of degraded compression quality, 
+      but can be useful when data needs to be available as soon as possible.
+    */
+    this.def.flush()
+    while (this.streamEventId) {
+      await delay(3000); // make sure last event done
+      this.streamEventId = uuid.v4()
+    }
+    const result = await new Promise((resolve, reject) => {
+      let handled = false;
+      const callback = (data) => {
+        log.info("jack test get result from write")
+        if (!handled) {
+          handled = true;
+          resolve(data);
+        }
+      }
+      setTimeout(() => {
+        if (!handled) {
+          handled = true;
+          log.info("timeout")
+          this.em.removeListener(this.id, callback);
+          resolve(null);
+        }
+      }, 30 * 1000);
+      this.em.once(this.streamEventId, callback)
+    })
+    return result
+  }
+
+  async raw2Flow(message) {
+    const { raw, audit } = message;
+    if (audit) {
+
+    } else {
+      const flow = flowTool.toSimpleFormat(raw)
+      const enriched = await flowTool.enrichWithIntel([flow])
+      return enriched[0]
+    }
+  }
+
+  async destoryStream() {
+    sclient.unsubscribe("FlowsStream")
+    this.inoutStream && this.inoutStream.destroy();
+    this.em = null;
+    this.compressedFlowsFromStream = "";
+    this.streamEventId = null;
   }
 
   async globalOff() {
     if (this.timer) clearInterval(this.timer);
   }
 
-  async checkAndCleanMem() {
-    let compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 1000)
-    if (compressedFlowsKeys && compressedFlowsKeys.length > 0) {
-      compressedFlowsKeys = compressedFlowsKeys.filter(key => key != this.recentlyTickKey).sort((a, b) => {
-        const ts1 = a.split(":")[2];
-        const ts2 = b.split(":")[2];
-        return ts1 > ts2 ? -1 : 1
-      })
-      let compressedMem = 0
-      let delFlag = false
-      for (const key of compressedFlowsKeys) {
-        if (delFlag) { // delete all earlier keys
-          await rclient.delAsync(key);
-          continue;
-        }
-        const mem = Number(await rclient.memoryAsync("usage", key) || 0)
-        compressedMem += mem
-        if (compressedMem > MAX_MEM) { // accumulate memory size from the latest
-          delFlag = true;
-          await rclient.delAsync(key);
-        }
-      }
-    }
-  }
-
   async apiRun() {
     extensionManager.onGet("compressedLastestTs", async (msg, data) => {
-      const recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
+      const recentlyTickTs = Number(await rclient.getAsync(this.lastestTsKey) || 0)
       return { ts: recentlyTickTs }
     })
 
     extensionManager.onGet("compressedflows", async (msg, data) => {
       const result = {}
       const now = new Date() / 1000
-      await Promise.all([
-        new Promise(async (resolve) => {
-          try {
-            result["compressedflows"] = await this.loadCompressedFlows(data)
-            resolve()
-          } catch (e) {
-            log.warn("get compressed flows error", e)
-            result["compressedflows"] = []
-            resolve()
-          }
-        }),
-        new Promise(async (resolve) => {
-          try {
-            const recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
-            let { begin, end } = data;
-            if (begin < recentlyTickTs) {
-              begin = recentlyTickTs
-            }
-            result["flows"] = this.mergeFlows(await this.loadFlows(begin, end))
-            resolve()
-          } catch (e) {
-            log.warn("get flows error", e)
-            result["flows"] = []
-            resolve()
-          }
-        })])
+      result["compressedflows"] = await this.loadCompressedFlows(data)
       log.info(`Get flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
       return result
     });
@@ -140,82 +182,62 @@ class FlowCompressionSensor extends Sensor {
     return `compressed:flows:${begin}:${end}`
   }
 
-  async build() {
-    this.processFlowsCnt = 0
-    this.processLogsCnt = 0
+  async build(now) {
     try {
-      const { begin, end } = await this.getBuildingWindow()
-      log.info("jack test build", begin, end)
-      if (begin == end) return
-      const now = new Date() / 1000
-      log.info(`Going to compress flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
-      for (let i = 0; i < (end - begin) / this.step; i++) {
-        const beginTs = begin + this.step * i
-        const endTs = begin + this.step * (i + 1)
-        const flows = await this.loadFlows(beginTs, endTs)
-        await this.save(beginTs, endTs, flows)
-        await rclient.setAsync(this.recentlyTickKey, endTs)
+      let begin = Number(await rclient.getAsync(this.lastestTsKey) || 0)
+      if (now - begin > this.maxInterval) {
+        begin = now - this.maxInterval
       }
-      await this.checkAndCleanMem()
-      log.info(`Compressed ${this.processFlowsCnt} flows, ${this.processLogsCnt} logs build completed, cost ${(new Date() / 1000 - now).toFixed(2)}`)
+      log.info(`Going to compress flows between ${new Date(begin * 1000)} - ${new Date(now * 1000)}`)
+      let completed = false
+      const options = {
+        begin: begin,
+        end: now,
+        audit: true,
+        count: 2000,
+        asc: true
+      }
+      let buffer = []
+      let processFlowsCnt = 0
+      let processLogsCnt = 0
+      while (!completed) {
+        try {
+          const flows = await flowTool.prepareRecentFlows({}, JSON.parse(JSON.stringify(options))) || []
+          if (flows.length < options.count) {
+            completed = true
+          } else {
+            options.begin = flows[flows.length - 1].ts
+          }
+          processFlowsCnt += flows.length
+          for (const flow of flows) {
+            processLogsCnt += flow.count || 0
+            buffer.push(flow)
+            if (buffer.length >= this.maxBufferSize) {
+              await this.save(buffer[0].ts, buffer[buffer.length - 1].ts, await this.compress(buffer))
+              await this.checkAndCleanMem()
+              buffer = []
+            }
+          }
+        } catch (e) {
+          log.error(`Load flows error`, e)
+          completed = true
+        }
+      }
+      if (buffer.length > 0) {
+        await this.save(buffer[0].ts, buffer[buffer.length - 1].ts, await this.compress(buffer))
+        await this.checkAndCleanMem()
+      }
+      log.info(`Compressed ${processFlowsCnt} flows, ${processLogsCnt} logs build completed, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     } catch (e) {
       log.error(`Compress flows error`, e)
     }
   }
 
-  async save(begin, end, flows) { // might save to disk in future
-    const now = new Date() / 1000
-    const base64Str = await this.compress(flows)
+  async save(begin, end, base64Str) {
     const key = this.getKey(begin, end)
     await rclient.setAsync(key, base64Str)
-    await rclient.expireatAsync(key, end + this.maxInterval)
-    log.debug(`Save ${flows.length} flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
-  }
-
-  async getBuildingWindow() {
-    const now = new Date() / 1000
-    const nowTickTs = now - now % this.step
-    let recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
-    log.info("jack test", nowTickTs, recentlyTickTs, this.step, this.maxInterval, this.interval)
-    if (nowTickTs - recentlyTickTs > this.maxInterval) {
-      recentlyTickTs = nowTickTs - this.maxInterval
-    }
-    return {
-      begin: recentlyTickTs,
-      end: nowTickTs
-    }
-  }
-
-  async loadFlows(begin, end) {
-    log.info(`Going to load flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
-    let completed = false
-    const options = {
-      begin: begin,
-      end: end,
-      audit: true,
-      count: 2000,
-      asc: true
-    }
-    let allFlows = []
-    const now = new Date() / 1000
-    while (!completed) {
-      try {
-        const flows = await flowTool.prepareRecentFlows({}, JSON.parse(JSON.stringify(options))) || []
-        if (flows.length < options.count) {
-          completed = true
-        } else {
-          options.begin = flows[flows.length - 1].ts
-        }
-        allFlows = allFlows.concat(flows)
-      } catch (e) {
-        log.error(`Load flows error`, e)
-        completed = true
-      }
-    }
-    this.processLogsCnt += allFlows.reduce((ac, val) => ac + val.count, 0)
-    this.processFlowsCnt += allFlows.length
-    log.info(`Load ${allFlows.length} flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
-    return allFlows
+    await rclient.expireatAsync(key, Math.ceil(end + this.maxInterval))
+    await rclient.setAsync(this.lastestTsKey, end)
   }
 
   mergeFlows(flows) {
@@ -242,10 +264,35 @@ class FlowCompressionSensor extends Sensor {
     const str = JSON.stringify(mergedFlows)
     const deflateBuffer = await deflateAsync(str)
     const base64Str = deflateBuffer.toString('base64')
-    log.debug(`Compress ${mergedFlows.length} flows, raw: ${str.length} deflate: ${deflateBuffer.length} base64:${base64Str.length}`)
+    log.info(`Compress ${mergedFlows.length} flows, raw: ${str.length} deflate: ${deflateBuffer.length} base64:${base64Str.length}`)
     return base64Str
   }
+
+  async checkAndCleanMem() {
+    let compressedFlowsKeys = await this.getCompreesedFlowsKey()
+    let compressedMem = 0
+    let delFlag = false
+    for (const key of compressedFlowsKeys) {
+      if (delFlag) { // delete all earlier keys
+        await rclient.delAsync(key);
+        continue;
+      }
+      const mem = Number(await rclient.memoryAsync("usage", key) || 0)
+      compressedMem += mem
+      if (compressedMem > MAX_MEM) { // accumulate memory size from the latest
+        delFlag = true;
+        await rclient.delAsync(key);
+      }
+    }
+  }
+
+  async getCompreesedFlowsKey() {
+    const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 1000) || []
+    return compressedFlowsKeys.filter(key => key != this.lastestTsKey).sort((a, b) => {
+      const ts1 = a.split(":")[2];
+      const ts2 = b.split(":")[2];
+      return ts1 > ts2 ? -1 : 1
+    })
+  }
 }
-
-
 module.exports = FlowCompressionSensor;

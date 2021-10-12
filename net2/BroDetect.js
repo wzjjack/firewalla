@@ -20,6 +20,7 @@ const log = require('./logger.js')(__filename);
 const LogReader = require('../util/LogReader.js');
 
 const rclient = require('../util/redis_manager.js').getRedisClient()
+const pclient = require('../util/redis_manager.js').getPublishClient()
 const platform = require('../platform/PlatformLoader.js').getPlatform();
 
 const iptool = require("ip");
@@ -1071,6 +1072,10 @@ class BroDetect {
               suppressEventLogging: true
             });
           }
+          pclient.publish("Flow2Stream", JSON.stringify({
+            raw: tmpspec,
+            audit: false
+          }))
         }, 1 * 1000); // make it a little slower so that dns record will be handled first
 
       }
