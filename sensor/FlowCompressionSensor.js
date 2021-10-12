@@ -239,7 +239,7 @@ class FlowCompressionSensor extends Sensor {
   async save(ts, base64Str) {
     const key = this.getKey(ts)
     await rclient.setAsync(key, base64Str)
-    await rclient.expireatAsync(key, Math.ceil(end + this.maxInterval))
+    await rclient.expireatAsync(key, Math.ceil(ts + this.maxInterval))
     await rclient.setAsync(this.lastestTsKey, end)
   }
 
