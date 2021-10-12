@@ -63,7 +63,9 @@ class FlowCompressionSensor extends Sensor {
     this.inoutStream.on('readable', () => {
       log.info("jack test readable readable")
     })
-    this.inoutStream._write = (chunk, encoding, next) => {
+
+    // override write
+    this.inoutStream.write = (chunk, encoding, next) => {
       this.compressedFlowsFromStream += chunk.toString('base64');
       if (this.em && this.streamEventId) {
         this.em.emit(this.streamEventId, this.compressedFlowsFromStream)
@@ -240,7 +242,7 @@ class FlowCompressionSensor extends Sensor {
     const key = this.getKey(ts)
     await rclient.setAsync(key, base64Str)
     await rclient.expireatAsync(key, Math.ceil(ts + this.maxInterval))
-    await rclient.setAsync(this.lastestTsKey, end)
+    await rclient.setAsync(this.lastestTsKey, ts)
   }
 
   mergeFlows(flows) {
