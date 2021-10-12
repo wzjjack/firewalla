@@ -59,23 +59,17 @@ class FlowCompressionSensor extends Sensor {
     this.inoutStream = new Duplex()
     this.buffer = 0
     this.inoutStream._read = (size) => {
-      log.info("jack test read size", size)
       this.buffer += size
-      // if (this.buffer > 16 * 1024 * 10) {
-      //   log.info("jack test read from readable sream 10 times")
-      //   this.inoutStream.pause() // pause
-      //   const compressedStr = await this.getCompressedFlowsFromStream();
-      //   await this.save(flow.ts, compressedStr);
-      //   this.inoutStream.resume();
-      // }
     }
 
-    this.inoutStream._write = (chunk) => {
+    this.inoutStream._write = (chunk, encoding, next) => {
       this.compressedFlowsFromStream += chunk.toString('base64');
+      log.info("jack test write", this.compressedFlowsFromStream.length)
       if (this.em && this.streamEventId) {
         this.em.emit(this.streamEventId, this.compressedFlowsFromStream)
         this.streamEventId = null;
       }
+      next()
     }
     this.def = zlib.createDeflate();
     this.inoutStream.pipe(this.def).pipe(this.inoutStream)
@@ -107,6 +101,7 @@ class FlowCompressionSensor extends Sensor {
       await delay(3000); // make sure last event done
       this.streamEventId = uuid.v4()
     }
+    log.info("jack test this.streamEventId", this.streamEventId)
     const result = await new Promise((resolve, reject) => {
       let handled = false;
       const callback = (data) => {
