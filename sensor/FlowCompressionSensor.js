@@ -60,6 +60,9 @@ class FlowCompressionSensor extends Sensor {
     this.inoutStream._read = (size) => {
       log.info("jack test read size", size)
     }
+    this.inoutStream.on('readable', () => {
+      log.info("jack test readable readable")
+    })
     this.inoutStream._write = (chunk, encoding, next) => {
       this.compressedFlowsFromStream += chunk.toString('base64');
       if (this.em && this.streamEventId) {
