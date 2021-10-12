@@ -1072,7 +1072,6 @@ class BroDetect {
               suppressEventLogging: true
             });
           }
-          log.info("jack test publich Flow2Stream")
           pclient.publish("Flow2Stream", JSON.stringify({
             raw: tmpspec,
             audit: false

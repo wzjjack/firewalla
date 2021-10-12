@@ -69,7 +69,6 @@ class FlowCompressionSensor extends Sensor {
     this.def = zlib.createDeflate();
     this.streamBuffer = 0;
     sclient.on("message", async (channel, message) => {
-      log.info("jack test publich channel", channel)
       if (channel === "Flow2Stream") {
         log.info("jack test Flow2Stream come in")
         message = JSON.parse(message)
@@ -89,7 +88,7 @@ class FlowCompressionSensor extends Sensor {
       }
     });
     log.info("jack test subscribe Flows2Stream")
-    sclient.subscribe("Flows2Stream")
+    sclient.subscribe("Flow2Stream")
   }
 
   async getCompressedFlowsFromStream() {
