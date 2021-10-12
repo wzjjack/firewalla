@@ -57,7 +57,9 @@ class FlowCompressionSensor extends Sensor {
     this.em = new EventEmitter();
     this.compressedFlowsFromStream = "";
     this.inoutStream = new Duplex()
-    this.inoutStream._read = () => { }
+    this.inoutStream._read = (size) => {
+      log.info("jack test read size", size)
+    }
     this.inoutStream._write = (chunk, encoding, next) => {
       this.compressedFlowsFromStream += chunk.toString('base64');
       if (this.em && this.streamEventId) {
@@ -67,23 +69,20 @@ class FlowCompressionSensor extends Sensor {
       next();
     }
     this.def = zlib.createDeflate();
-    this.streamBuffer = 0;
+    this.inoutStream.pipe(this.def).pipe(inoutStream)
+    let flowsCnt = 0;
     sclient.on("message", async (channel, message) => {
       if (channel === "Flow2Stream") {
-        message = JSON.parse(message)
-        this.streamBuffer = this.streamBuffer + 1;
-        log.info("jack test Flow2Stream come in", this.streamBuffer)
+        message = JSON.parse(message);
         const flow = await this.raw2Flow(message);
-        if (!this.streamBeginTs) {
-          this.streamBeginTs = flow.ts
-        }
-        this.streamEndTs = flow.ts
         this.inoutStream.push(JSON.stringify(flow));
-        if (this.streamBuffer > this.maxBufferSize) {
-          const compressedStr = await this.getCompressedFlowsFromStream();
-          await this.save(this.streamBeginTs, this.streamEndTs, compressedStr);
-          this.streamBuffer = 0;
-        }
+        // if (flowsCnt > this.maxBufferSize) {
+        //   this.inoutStream.pause();
+        //   const compressedStr = await this.getCompressedFlowsFromStream();
+        //   await this.save(flow.ts, compressedStr);
+        //   this.inoutStream.resume();
+        //   flowsCnt = 0;
+        // }
         log.info("jack test Flow2Stream come out")
       }
     });
@@ -179,8 +178,8 @@ class FlowCompressionSensor extends Sensor {
     return compressedFlows
   }
 
-  getKey(begin, end) {
-    return `compressed:flows:${begin}:${end}`
+  getKey(ts) {
+    return `compressed:flows:${ts}`
   }
 
   async build(now) {
@@ -214,7 +213,7 @@ class FlowCompressionSensor extends Sensor {
             processLogsCnt += flow.count || 0
             buffer.push(flow)
             if (buffer.length >= this.maxBufferSize) {
-              await this.save(buffer[0].ts, buffer[buffer.length - 1].ts, await this.compress(buffer))
+              await this.save(buffer[buffer.length - 1].ts, await this.compress(buffer))
               await this.checkAndCleanMem()
               buffer = []
             }
@@ -225,7 +224,7 @@ class FlowCompressionSensor extends Sensor {
         }
       }
       if (buffer.length > 0) {
-        await this.save(buffer[0].ts, buffer[buffer.length - 1].ts, await this.compress(buffer))
+        await this.save(buffer[buffer.length - 1].ts, await this.compress(buffer))
         await this.checkAndCleanMem()
       }
       log.info(`Compressed ${processFlowsCnt} flows, ${processLogsCnt} logs build completed, cost ${(new Date() / 1000 - now).toFixed(2)}`)
@@ -234,8 +233,8 @@ class FlowCompressionSensor extends Sensor {
     }
   }
 
-  async save(begin, end, base64Str) {
-    const key = this.getKey(begin, end)
+  async save(ts, base64Str) {
+    const key = this.getKey(ts)
     await rclient.setAsync(key, base64Str)
     await rclient.expireatAsync(key, Math.ceil(end + this.maxInterval))
     await rclient.setAsync(this.lastestTsKey, end)
@@ -288,7 +287,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async getCompreesedFlowsKey() {
-    const compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 1000) || []
+    const compressedFlowsKeys = await rclient.scanResults(this.getKey("*"), 1000) || []
     return compressedFlowsKeys.filter(key => key != this.lastestTsKey).sort((a, b) => {
       const ts1 = a.split(":")[2];
       const ts2 = b.split(":")[2];
