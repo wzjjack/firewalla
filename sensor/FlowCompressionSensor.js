@@ -58,7 +58,7 @@ class FlowCompressionSensor extends Sensor {
     this.compressedFlowsFromStream = "";
     this.inoutStream = new Duplex()
     this.buffer = 0
-    this.inoutStream.read = (size) => {
+    this.inoutStream._read = (size) => {
       log.info("jack test read size", size)
       this.buffer += size
       // if (this.buffer > 16 * 1024 * 10) {
@@ -70,7 +70,7 @@ class FlowCompressionSensor extends Sensor {
       // }
     }
 
-    this.inoutStream.write = (chunk) => {
+    this.inoutStream._write = (chunk) => {
       this.compressedFlowsFromStream += chunk.toString('base64');
       if (this.em && this.streamEventId) {
         this.em.emit(this.streamEventId, this.compressedFlowsFromStream)
