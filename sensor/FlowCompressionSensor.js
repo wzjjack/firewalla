@@ -57,41 +57,42 @@ class FlowCompressionSensor extends Sensor {
     this.em = new EventEmitter();
     this.compressedFlowsFromStream = "";
     this.inoutStream = new Duplex()
-    this.inoutStream._read = (size) => {
+    this.buffer = 0
+    this.inoutStream.read = (size) => {
       log.info("jack test read size", size)
+      this.buffer += size
+      // if (this.buffer > 16 * 1024 * 10) {
+      //   log.info("jack test read from readable sream 10 times")
+      //   this.inoutStream.pause() // pause
+      //   const compressedStr = await this.getCompressedFlowsFromStream();
+      //   await this.save(flow.ts, compressedStr);
+      //   this.inoutStream.resume();
+      // }
     }
-    this.inoutStream.on('readable', () => {
-      log.info("jack test readable readable")
-    })
 
-    // override write
-    this.inoutStream.write = (chunk, encoding, next) => {
+    this.inoutStream.write = (chunk) => {
       this.compressedFlowsFromStream += chunk.toString('base64');
       if (this.em && this.streamEventId) {
         this.em.emit(this.streamEventId, this.compressedFlowsFromStream)
         this.streamEventId = null;
       }
-      next();
     }
     this.def = zlib.createDeflate();
     this.inoutStream.pipe(this.def).pipe(this.inoutStream)
-    let flowsCnt = 0;
     sclient.on("message", async (channel, message) => {
       if (channel === "Flow2Stream") {
         message = JSON.parse(message);
         const flow = await this.raw2Flow(message);
         this.inoutStream.push(JSON.stringify(flow));
-        // if (flowsCnt > this.maxBufferSize) {
-        //   this.inoutStream.pause();
-        //   const compressedStr = await this.getCompressedFlowsFromStream();
-        //   await this.save(flow.ts, compressedStr);
-        //   this.inoutStream.resume();
-        //   flowsCnt = 0;
-        // }
-        log.info("jack test Flow2Stream come out")
+        if (this.buffer > 10 * 16 * 1024) {
+          log.info("jack test read 10 times of flows")
+          this.inoutStream.pause() // pause
+          const compressedStr = await this.getCompressedFlowsFromStream();
+          await this.save(flow.ts, compressedStr);
+          this.inoutStream.resume();
+        }
       }
     });
-    log.info("jack test subscribe Flows2Stream")
     sclient.subscribe("Flow2Stream")
   }
 
