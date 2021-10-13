@@ -28,11 +28,12 @@ const rclient = require('../util/redis_manager').getRedisClient();
 const sclient = require('../util/redis_manager.js').getSubscriptionClient()
 const deflateAsync = Promise.promisify(zlib.deflate);
 const sem = require('./SensorEventManager.js').getInstance();
-const { Duplex } = require('stream');
+const { Duplex, Readable } = require('stream');
 const EventEmitter = require('events');
 const MAX_MEM = 10 * 1000 * 1000;
 const delay = require('../util/util.js').delay;
 const uuid = require('uuid');
+const Queue = require('bee-queue')
 
 class FlowCompressionSensor extends Sensor {
   constructor() {
@@ -46,84 +47,106 @@ class FlowCompressionSensor extends Sensor {
   async run() {
     this.hookFeature(featureName);
   }
-
-  async globalOn() {
-    const now = new Date() / 1000
-    await this.setupStream()
-    await this.build(now)
+  setupFlowsQueue() {
+    this.queue = new Queue(`flows-stream`, {
+      removeOnFailure: true,
+      removeOnSuccess: true
+    })
+    this.queue.on('error', (err) => {
+      log.error("Queue got err:", err)
+    })
+    this.queue.on('failed', (job, err) => {
+      log.error(`Job ${job.id} ${job.action} failed with error ${err.message}`);
+    });
+    this.queue.destroy(() => {
+      log.info("flows stream queue is cleaned up")
+    })
+    this.jobCnt = 0;
+    this.queue.process(async (job, done) => {
+      log.info("process flow stream job");
+      try {
+        if (job && job.data) { // raw flow string
+          const data = JSON.parse(job.data);
+          const flow = await this.raw2Flow(data);
+          while (!this.readableStream || this.readableStream.destroyed) {
+            log.info("deferred due to readableStream might be destoryed and re-create");
+            await delay(3 * 1000)
+          }
+          this.readableStream.push(JSON.stringify(flow))
+          this.jobCnt++;
+          if (this.jobCnt >= 50) { // save the result to the redis
+            await this.dumpStreamFlows();
+            this.jobCnt = 0;
+          }
+        }
+      } catch (e) {
+        log.info("process job error", e);
+      } finally {
+        done();
+      }
+    })
   }
 
-  async setupStream() {
-    this.em = new EventEmitter();
-    this.compressedFlowsFromStream = "";
-    this.inoutStream = new Duplex()
-    this.buffer = 0
-    this.inoutStream._read = (size) => {
-      this.buffer += size
+  setupStream() {
+    const readableStream = new Readable({
+      read() { }
+    })
+    const def = zlib.createDeflate();
+    const zstream = readableStream.pipe(def);
+    const chunks = [];
+    this.readableStream = readableStream;
+    this.streamToString = () => {
+      return new Promise((resolve, reject) => {
+        zstream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        zstream.on('error', (err) => reject(err));
+        zstream.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
+      })
     }
+    this.destroyStreams = () => {
+      readableStream.destroy();
+      def.destroy();
+      zstream.destroy();
+    }
+  }
 
-    this.inoutStream._write = (chunk, encoding, next) => {
-      this.compressedFlowsFromStream += chunk.toString('base64');
-      log.info("jack test write", this.compressedFlowsFromStream.length)
-      if (this.em && this.streamEventId) {
-        this.em.emit(this.streamEventId, this.compressedFlowsFromStream)
-      }
-      next()
-    }
-    this.def = zlib.createDeflate();
-    this.inoutStream.pipe(this.def).pipe(this.inoutStream)
+  async globalOn() {
+    const now = new Date() / 1000;
+    this.setupFlowsQueue();
+    this.setupStream();
     sclient.on("message", async (channel, message) => {
       if (channel === "Flow2Stream") {
-        message = JSON.parse(message);
-        const flow = await this.raw2Flow(message);
-        this.inoutStream.push(JSON.stringify(flow));
-        if (this.buffer > 10 * 16 * 1024) {
-          log.info("jack test read 10 times of flows")
-          this.buffer = 0;
-          this.inoutStream.pause() // pause
-          const compressedStr = await this.getCompressedFlowsFromStream();
-          log.info("jack test compressedStr", compressedStr)
-          await this.save(flow.ts, compressedStr);
-          this.inoutStream.resume();
+        if (this.queue) {
+          const job = this.queue.createJob(message);
+          job.timeout(3000).retries(2).save((err) => {
+            if (err) {
+              log.error("Failed to create flows stream job", err.message);
+            }
+          })
         }
       }
     });
     sclient.subscribe("Flow2Stream")
+    await this.build(now)
   }
 
-  async getCompressedFlowsFromStream() {
-    /* 
-      Calling .flush() on a compression stream will make zlib return as much output as currently possible. 
-      This may come at the cost of degraded compression quality, 
-      but can be useful when data needs to be available as soon as possible.
-    */
-    this.def.flush()
-    while (this.streamEventId) {
-      await delay(3000); // make sure last event done
+  async globalOff() {
+    sclient.unsubscribe("Flow2Stream");
+    this.queue && this.queue.destroy();
+    this.destroyStreams();
+  }
+
+  async dumpStreamFlows() {
+    if (this.readableStream) {
+      this.readableStream.push(null); // stop readable stream
+      const result = await this.streamToString(); // dump the result to the redis
+      const now = new Date() / 1000;
+      log.info("jack test dumpStreamFlows", result, now)
+      await this.save(now, result);
+      this.destroyStreams();
+      await this.setupStream(); // re-create streams
+      return result;
     }
-    this.streamEventId = uuid.v4()
-    log.info("jack test this.streamEventId", this.streamEventId)
-    const result = await new Promise((resolve, reject) => {
-      let handled = false;
-      const callback = (data) => {
-        log.info("jack test get result from write")
-        if (!handled) {
-          handled = true;
-          resolve(data);
-        }
-      }
-      setTimeout(() => {
-        if (!handled) {
-          handled = true;
-          log.info("timeout")
-          this.em.removeListener(this.streamEventId, callback);
-          resolve(null);
-        }
-      }, 30 * 1000);
-      this.em.once(this.streamEventId, callback)
-    })
-    this.streamEventId = null;
-    return result
+    return null;
   }
 
   async raw2Flow(message) {
@@ -135,18 +158,6 @@ class FlowCompressionSensor extends Sensor {
       const enriched = await flowTool.enrichWithIntel([flow])
       return enriched[0]
     }
-  }
-
-  async destoryStream() {
-    sclient.unsubscribe("FlowsStream")
-    this.inoutStream && this.inoutStream.destroy();
-    this.em = null;
-    this.compressedFlowsFromStream = "";
-    this.streamEventId = null;
-  }
-
-  async globalOff() {
-    if (this.timer) clearInterval(this.timer);
   }
 
   async apiRun() {
@@ -165,19 +176,17 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async loadCompressedFlows(options) {
-    // options {begin,end}
     let { begin, end } = options
-    begin = begin - begin % this.step
-    end = end - end % this.step
-    if (begin == end) return []
-    log.info(`Load compressed flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
+    const compressedFlowsKeys = await this.getCompreesedFlowsKey()
     const compressedFlows = []
-    for (let i = 0; i < (end - begin) / this.step; i++) {
-      const beginTs = begin + this.step * i
-      const endTs = begin + this.step * (i + 1)
-      const str = await rclient.getAsync(this.getKey(beginTs, endTs))
+    for (const key of compressedFlowsKeys) {
+      const ts = key.split(":")[2];
+      if (ts < begin) continue
+      const str = await rclient.getAsync(key)
       str && compressedFlows.push(str)
     }
+    const extraFlows = await this.dumpStreamFlows();
+    extraFlows && compressedFlows.push(extraFlows);
     return compressedFlows
   }
 
@@ -267,12 +276,11 @@ class FlowCompressionSensor extends Sensor {
     const str = JSON.stringify(mergedFlows)
     const deflateBuffer = await deflateAsync(str)
     const base64Str = deflateBuffer.toString('base64')
-    log.info(`Compress ${mergedFlows.length} flows, raw: ${str.length} deflate: ${deflateBuffer.length} base64:${base64Str.length}`)
     return base64Str
   }
 
   async checkAndCleanMem() {
-    let compressedFlowsKeys = await this.getCompreesedFlowsKey()
+    const compressedFlowsKeys = await this.getCompreesedFlowsKey()
     let compressedMem = 0
     let delFlag = false
     for (const key of compressedFlowsKeys) {
