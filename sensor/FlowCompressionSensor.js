@@ -154,7 +154,7 @@ class FlowCompressionSensor extends Sensor {
     const { raw, audit } = message;
     let flow, enriched;
     if (audit) {
-      flow = auditTool.toSimpleFormat(raw)
+      flow = auditTool.toSimpleFormat(raw, {})
       enriched = await auditTool.enrichWithIntel([flow]);
     } else {
       flow = flowTool.toSimpleFormat(raw)
