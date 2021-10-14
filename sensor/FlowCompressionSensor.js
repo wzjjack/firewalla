@@ -129,6 +129,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async dumpStreamFlows(ts, updateTs = true) {
+    log.info("Start dump stream data to redis")
     while (this.dumping) {
       await delay(1000)
     }
@@ -144,6 +145,7 @@ class FlowCompressionSensor extends Sensor {
     } catch (e) {
       log.info("DumpStreamFlows error", e)
     }
+    log.info("Dump stream data to redis done")
     this.dumping = false
   }
 
