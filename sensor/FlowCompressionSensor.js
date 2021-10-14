@@ -15,6 +15,7 @@
 'use strict';
 
 const flowTool = require('../net2/FlowTool');
+const auditTool = require('../net2/AuditTool');
 const log = require('../net2/logger.js')(__filename)
 const _ = require('lodash');
 const Sensor = require('./Sensor.js').Sensor
@@ -60,11 +61,12 @@ class FlowCompressionSensor extends Sensor {
 
     sem.on('DumpStreamFlows', async (event) => {
       const id = event.messageId;
-      log.info("jack test got DumpStreamFlows event", id)
       const now = new Date() / 1000;
       const nowTickTs = now - now % this.step + this.step;
-      await this.dumpStreamFlows(nowTickTs);
-      log.info("jack test publish event", `DumpStreamFlows:Done-${id}`)
+      // dump the realtime flow to redis
+      // don't update the lastest ts
+      // lastest ts always update by cornjob/ initial build
+      await this.dumpStreamFlows(nowTickTs, false);
       sem.emitEvent({
         type: `DumpStreamFlows:Done-${id}`,
         toProcess: "FireApi",
@@ -129,7 +131,7 @@ class FlowCompressionSensor extends Sensor {
     }
   }
 
-  async dumpStreamFlows(ts) {
+  async dumpStreamFlows(ts, updateTs = true) {
     while (this.dumping) {
       await delay(1000)
     }
@@ -138,26 +140,27 @@ class FlowCompressionSensor extends Sensor {
       if (this.readableStream) {
         this.readableStream.push(null); // readable stream EOF
         const result = await this.streamToString(); // dump the result to the redis
-        log.info("jack test dumpStreamFlows", result, new Date(ts * 1000))
-        await this.save(ts, result);
+        await this.appendAndSave(ts, result, updateTs);
         this.destroyStreams(); // destory and re-create
         await this.setupStreams();
       }
     } catch (e) {
-      log.info("jack test dumpStreamFlows error", e)
+      log.info("DumpStreamFlows error", e)
     }
     this.dumping = false
   }
 
   async raw2Flow(message) {
     const { raw, audit } = message;
+    let flow, enriched;
     if (audit) {
-
+      flow = auditTool.toSimpleFormat(raw)
+      enriched = await auditTool.enrichWithIntel([flow]);
     } else {
-      const flow = flowTool.toSimpleFormat(raw)
-      const enriched = await flowTool.enrichWithIntel([flow])
-      return enriched[0]
+      flow = flowTool.toSimpleFormat(raw)
+      enriched = await flowTool.enrichWithIntel([flow]);
     }
+    return enriched[0]
   }
 
 
@@ -167,8 +170,7 @@ class FlowCompressionSensor extends Sensor {
     this.setupStreams();
     this.cornJob && this.cornJob.stop();
     this.cornJob = new CronJob("0 0 * * * *", async () => {
-      log.info("jack test corn job trigger");
-      // dump flow stream to redis every hour
+      // dump flow stream to redis hourly
       const now = new Date() / 1000;
       const nowTickTs = now - now % this.step;
       await this.dumpStreamFlows(nowTickTs);
@@ -243,9 +245,7 @@ class FlowCompressionSensor extends Sensor {
     })
     return new Promise((resolve) => {
       const channelId = `DumpStreamFlows:Done-${messageId}`
-      log.info("jack test subscribe event", channelId)
       sem.on(channelId, (event) => {
-        log.info("jack test DumpStreamFlows:Done", event)
         resolve()
       })
       setTimeout(() => {
@@ -271,9 +271,8 @@ class FlowCompressionSensor extends Sensor {
         const beginTs = begin + this.step * i
         const endTs = begin + this.step * (i + 1)
         const flows = await this.loadFlows(beginTs, endTs)
-        await this.save(endTs, await this.compress(flows))
+        await this.cleanAndSave(endTs, flows)
       }
-      await this.checkAndCleanMem()
       log.info(`Compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     } catch (e) {
       log.error(`Compress flows error`, e)
@@ -281,16 +280,29 @@ class FlowCompressionSensor extends Sensor {
     this.building = false;
   }
 
-  async save(ts, base64Str) {
+  async cleanAndSave(ts, flows) {
+    const base64Str = await this.compress(flows);
+    const key = this.getKey(ts);
+    await rclient.delAsync(key);
+    await this.save(ts, base64Str);
+  }
+
+  async appendAndSave(ts, base64Str, updateTs) {
     const key = this.getKey(ts)
     if (await rclient.existsAsync(key)) {
-      log.info("jack test the key is exist, then append the str", key)
+      log.info("Compress key exists, append content with SPLIT_STRING", key)
       const existsVal = await rclient.getAsync(key);
       base64Str = existsVal + SPLIT_STRING + base64Str;
     }
+    await this.save(ts, base64Str, updateTs)
+  }
+
+  async save(ts, base64Str, updateTs = true) {
+    const key = this.getKey(ts)
     await rclient.setAsync(key, base64Str)
     await rclient.expireatAsync(key, Math.ceil(ts + this.maxInterval))
-    await rclient.setAsync(this.lastestTsKey, ts)
+    updateTs && (await rclient.setAsync(this.lastestTsKey, ts))
+    await this.checkAndCleanMem()
   }
 
   async getBuildingWindow(now) {

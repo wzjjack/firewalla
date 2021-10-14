@@ -52,6 +52,8 @@ const labelReasonMap = {
   "dns_proxy": "active_protect"
 }
 
+const sem = require('./SensorEventManager.js').getInstance();
+
 class ACLAuditLogPlugin extends Sensor {
   constructor(config) {
     super(config)
@@ -490,6 +492,13 @@ class ACLAuditLogPlugin extends Sensor {
           for (const tag of record.tags) {
             timeSeriesWithTz.recordHit(`${hitType}:tag:${tag}`, tsWithTz, ct)
           }
+
+          sem.emitEvent({
+            type: "Flow2Stream",
+            suppressEventLogging: true,
+            raw: record,
+            audit: true
+          })
         }
       }
       timeSeries.exec()
