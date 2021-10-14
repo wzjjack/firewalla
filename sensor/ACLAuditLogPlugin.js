@@ -497,7 +497,7 @@ class ACLAuditLogPlugin extends Sensor {
           block && sem.emitEvent({
             type: "Flow2Stream",
             suppressEventLogging: true,
-            raw: Object.assign({}, record, { device: mac }), // record the mac address here
+            raw: Object.assign({}, record, { mac: mac }), // record the mac address here
             audit: true
           })
         }
