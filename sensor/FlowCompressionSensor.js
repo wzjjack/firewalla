@@ -51,7 +51,7 @@ class FlowCompressionSensor extends Sensor {
       if (this.queue) {
         const { raw, audit } = event;
         const job = this.queue.createJob({ raw, audit });
-        job.timeout(3000).retries(2).save((err) => {
+        job.timeout(60000).retries(2).save((err) => {
           if (err) {
             log.error("Failed to create flows stream job", err.message);
           }
@@ -96,8 +96,8 @@ class FlowCompressionSensor extends Sensor {
         if (job && job.data) { // raw flow string
           const flow = await this.raw2Flow(job.data);
           while (this.dumping) {
-            log.info("deferred due to readableStream might be destoryed and re-create");
-            await delay(1000)
+            log.debug("deferred due to readableStream might be destoryed and re-create");
+            await delay(3000)
           }
           this.readableStream.push(JSON.stringify(flow) + SPLIT_STRING)
         }
