@@ -174,6 +174,7 @@ class FlowCompressionSensor extends Sensor {
       const now = new Date() / 1000;
       const nowTickTs = now - now % this.step;
       await this.dumpStreamFlows(nowTickTs);
+      await this.checkAndCleanMem();
     }, null, true)
     await this.build(now);
   }
@@ -181,7 +182,7 @@ class FlowCompressionSensor extends Sensor {
   async globalOff() {
     this.queue && this.queue.destroy();
     this.queue = null;
-    this.destroyStreams();
+    this.destroyStreams && this.destroyStreams();
     this.cornJob && this.cornJob.stop();
     this.cornJob = null;
   }
@@ -273,6 +274,7 @@ class FlowCompressionSensor extends Sensor {
         const flows = await this.loadFlows(beginTs, endTs)
         await this.cleanAndSave(endTs, flows)
       }
+      await this.checkAndCleanMem()
       log.info(`Compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     } catch (e) {
       log.error(`Compress flows error`, e)
@@ -289,9 +291,9 @@ class FlowCompressionSensor extends Sensor {
 
   async appendAndSave(ts, base64Str, updateTs) {
     const key = this.getKey(ts)
-    if (await rclient.existsAsync(key)) {
-      log.info("Compress key exists, append content with SPLIT_STRING", key)
-      const existsVal = await rclient.getAsync(key);
+    const existsVal = await rclient.getAsync(key);
+    if (existsVal) {
+      log.info("Compress key exists, append content with SPLIT_STRING", key);
       base64Str = existsVal + SPLIT_STRING + base64Str;
     }
     await this.save(ts, base64Str, updateTs)
@@ -302,7 +304,6 @@ class FlowCompressionSensor extends Sensor {
     await rclient.setAsync(key, base64Str)
     await rclient.expireatAsync(key, Math.ceil(ts + this.maxInterval))
     updateTs && (await rclient.setAsync(this.lastestTsKey, ts))
-    await this.checkAndCleanMem()
   }
 
   async getBuildingWindow(now) {
