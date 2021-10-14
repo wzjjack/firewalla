@@ -33,7 +33,7 @@ const MAX_MEM = 10 * 1000 * 1000
 const delay = require('../util/util.js').delay;
 const Queue = require('bee-queue');
 const { Readable } = require('stream');
-const SPLIT_STRING = "\n\n";
+const SPLIT_STRING = "\n";
 const CronJob = require('cron').CronJob;
 const uuid = require('uuid');
 
