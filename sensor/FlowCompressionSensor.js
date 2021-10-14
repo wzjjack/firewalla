@@ -23,137 +23,284 @@ const featureName = 'compress_flows'
 const Promise = require('bluebird');
 const zlib = require('zlib');
 const extensionManager = require('./ExtensionManager.js')
-const { rclient } = require('../util/redis_manager');
+const rclient = require('../util/redis_manager').getRedisClient();
+const sclient = require('../util/redis_manager.js').getSubscriptionClient()
+const pclient = require('../util/redis_manager.js').getPublishClient()
 const deflateAsync = Promise.promisify(zlib.deflate);
 const sem = require('./SensorEventManager.js').getInstance();
 const MAX_MEM = 10 * 1000 * 1000
+const delay = require('../util/util.js').delay;
+const Queue = require('bee-queue');
+const { Readable } = require('stream');
+const SPLIT_STRING = "\n\n";
+const CronJob = require('cron').CronJob;
+const uuid = require('uuid');
 
 class FlowCompressionSensor extends Sensor {
   constructor() {
     super()
-    this.recentlyTickKey = "compressed:flows:lastest:ts"
+    this.lastestTsKey = "compressed:flows:lastest:ts"
     this.step = 60 * 60 // one hour
     this.maxInterval = 24 * 60 * 60 // 24 hours
   }
 
   async run() {
-    sem.once('IPTABLES_READY', async () => {
-      await this.build()
-      setInterval(async () => {
-        await this.build()
-      }, 30 * 60 * 1000);
+    this.hookFeature(featureName);
+    sem.on('Flow2Stream', (event) => {
+      if (this.queue) {
+        const { raw, audit } = event;
+        const job = this.queue.createJob({ raw, audit });
+        job.timeout(3000).retries(2).save((err) => {
+          if (err) {
+            log.error("Failed to create flows stream job", err.message);
+          }
+        })
+      }
+    })
+
+    sem.on('DumpStreamFlows', async (event) => {
+      const id = event.messageId;
+      log.info("jack test got DumpStreamFlows event", id)
+      const now = new Date() / 1000;
+      const nowTickTs = now - now % this.step + this.step;
+      await this.dumpStreamFlows(nowTickTs);
+      log.info("jack test publish event", `DumpStreamFlows:Done-${id}`)
+      sem.emitEvent({
+        type: `DumpStreamFlows:Done-${id}`,
+        toProcess: "FireApi",
+        suppressEventLogging: false,
+        message: "DumpStreamFlows:Done"
+      })
+    })
+
+  }
+
+  setupFlowsQueue() {
+    this.queue = new Queue(`flows-stream`, {
+      removeOnFailure: true,
+      removeOnSuccess: true
+    })
+    this.queue.on('error', (err) => {
+      log.error("Queue got err:", err)
+    })
+    this.queue.on('failed', (job, err) => {
+      log.error(`Job ${job.id} ${job.action} failed with error ${err.message}`);
+    });
+    this.queue.destroy(() => {
+      log.info("flows stream queue is cleaned up")
+    })
+    this.queue.process(async (job, done) => {
+      try {
+        if (job && job.data) { // raw flow string
+          const flow = await this.raw2Flow(job.data);
+          while (this.dumping) {
+            log.info("deferred due to readableStream might be destoryed and re-create");
+            await delay(1000)
+          }
+          this.readableStream.push(JSON.stringify(flow) + SPLIT_STRING)
+        }
+      } catch (e) {
+        log.info("process job error", e);
+      } finally {
+        done();
+      }
     })
   }
 
-  async checkAndCleanMem() {
-    let compressedFlowsKeys = await rclient.scanResults(this.getKey("*", "*"), 1000)
-    if (compressedFlowsKeys && compressedFlowsKeys.length > 0) {
-      compressedFlowsKeys = compressedFlowsKeys.filter(key => key != this.recentlyTickKey).sort((a, b) => {
-        const ts1 = a.split(":")[2];
-        const ts2 = b.split(":")[2];
-        return ts1 > ts2 ? -1 : 1
+  setupStreams() {
+    const readableStream = new Readable({
+      read() { }
+    })
+    const def = zlib.createDeflate();
+    const zstream = readableStream.pipe(def);
+    const chunks = [];
+    this.readableStream = readableStream;
+    this.streamToString = () => {
+      return new Promise((resolve, reject) => {
+        zstream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        zstream.on('error', (err) => reject(err));
+        zstream.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
       })
-      let compressedMem = 0
-      let delFlag = false
-      for (const key of compressedFlowsKeys) {
-        if (delFlag) { // delete all earlier keys
-          await rclient.delAsync(key);
-          continue;
-        }
-        const mem = Number(await rclient.memoryAsync("usage", key) || 0)
-        compressedMem += mem
-        if (compressedMem > MAX_MEM) { // accumulate memory size from the latest
-          delFlag = true;
-          await rclient.delAsync(key);
-        }
+    }
+    this.destroyStreams = () => {
+      readableStream.destroy();
+      def.destroy();
+      zstream.destroy();
+    }
+  }
+
+  async dumpStreamFlows(ts) {
+    while (this.dumping) {
+      await delay(1000)
+    }
+    this.dumping = true;
+    try {
+      if (this.readableStream) {
+        this.readableStream.push(null); // readable stream EOF
+        const result = await this.streamToString(); // dump the result to the redis
+        log.info("jack test dumpStreamFlows", result, new Date(ts * 1000))
+        await this.save(ts, result);
+        this.destroyStreams(); // destory and re-create
+        await this.setupStreams();
+      }
+    } catch (e) {
+      log.info("jack test dumpStreamFlows error", e)
+    }
+    this.dumping = false
+  }
+
+  async raw2Flow(message) {
+    const { raw, audit } = message;
+    if (audit) {
+
+    } else {
+      const flow = flowTool.toSimpleFormat(raw)
+      const enriched = await flowTool.enrichWithIntel([flow])
+      return enriched[0]
+    }
+  }
+
+
+  async globalOn() {
+    const now = new Date() / 1000;
+    this.setupFlowsQueue();
+    this.setupStreams();
+    this.cornJob && this.cornJob.stop();
+    this.cornJob = new CronJob("0 0 * * * *", async () => {
+      log.info("jack test corn job trigger");
+      // dump flow stream to redis every hour
+      const now = new Date() / 1000;
+      const nowTickTs = now - now % this.step;
+      await this.dumpStreamFlows(nowTickTs);
+    }, null, true)
+    await this.build(now);
+  }
+
+  async globalOff() {
+    this.queue && this.queue.destroy();
+    this.queue = null;
+    this.destroyStreams();
+    this.cornJob && this.cornJob.stop();
+    this.cornJob = null;
+  }
+
+  async checkAndCleanMem() {
+    const compressedFlowsKeys = await this.getCompreesedFlowsKey()
+    let compressedMem = 0
+    let delFlag = false
+    for (const key of compressedFlowsKeys) {
+      if (delFlag) { // delete all earlier keys
+        await rclient.delAsync(key);
+        continue;
+      }
+      const mem = Number(await rclient.memoryAsync("usage", key) || 0)
+      compressedMem += mem
+      if (compressedMem > MAX_MEM) { // accumulate memory size from the latest
+        delFlag = true;
+        await rclient.delAsync(key);
       }
     }
   }
 
   async apiRun() {
-    extensionManager.onGet("compressedflows", (msg, data) => {
-      return this.loadCompressedFlows(data)
+    extensionManager.onGet("compressedLastestTs", async (msg, data) => {
+      const lastestTs = Number(await rclient.getAsync(this.lastestTsKey) || 0)
+      return { ts: lastestTs }
+    })
+
+    extensionManager.onGet("compressedflows", async (msg, data) => {
+      const result = {}
+      const now = new Date() / 1000
+      result["compressedflows"] = await this.loadCompressedFlows(data)
+      log.info(`Get flows cost ${(new Date() / 1000 - now).toFixed(2)}`)
+      return result
     });
   }
 
   async loadCompressedFlows(options) {
     // options {begin,end}
     let { begin, end } = options
-    begin = begin - begin % this.step
-    end = end - end % this.step
     log.info(`Load compressed flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
+    begin = begin - begin % this.step
+    end = end - end % this.step + this.step
+    await this.waitRealtimeDumpDone();
     const compressedFlows = []
     for (let i = 0; i < (end - begin) / this.step; i++) {
-      const beginTs = begin + this.step * i
       const endTs = begin + this.step * (i + 1)
-      const str = await rclient.getAsync(this.getKey(beginTs, endTs))
+      const str = await rclient.getAsync(this.getKey(endTs))
       str && compressedFlows.push(str)
     }
     return compressedFlows
   }
 
-  getKey(begin, end) {
-    return `compressed:flows:${begin}:${end}`
+  async waitRealtimeDumpDone() {
+    const messageId = uuid.v4();
+    sem.emitEvent({
+      type: "DumpStreamFlows",
+      toProcess: 'FireMain',
+      suppressEventLogging: false,
+      messageId: messageId
+    })
+    return new Promise((resolve) => {
+      const channelId = `DumpStreamFlows:Done-${messageId}`
+      log.info("jack test subscribe event", channelId)
+      sem.on(channelId, (event) => {
+        log.info("jack test DumpStreamFlows:Done", event)
+        resolve()
+      })
+      setTimeout(() => {
+        resolve();
+      }, 30 * 1000);
+    })
   }
 
-  async sensorCheck() {
-    if (!fc.isFeatureOn(featureName)) {
-      log.info(`${featureName} feature is disabled.`)
-      return false
-    }
-    const members = await rclient.smembersAsync("sys:ept:members")
-    if (members && members.length > 0) {
-      const webEnabled = members.map((m) => {
-        try {
-          return JSON.parse(m)
-        } catch (err) {
-          return null
-        }
-      }).filter((x) => x != null && x.name == 'firewalla_web').length > 0
-      if (!webEnabled) {
-        log.info(`firewalla_web haven't enabled`)
-      }
-      return webEnabled
-    }
-    return false
+  getKey(ts) {
+    return `compressed:flows:${ts}`
   }
 
-  async build() {
+  async build(now) {
+    while (this.building) {
+      await delay(30 * 1000)
+    }
+    this.building = true;
     try {
-      if (! await this.sensorCheck()) return
-      const { begin, end } = await this.getBuildingWindow()
-      const now = new Date() / 1000
+      const { begin, end } = await this.getBuildingWindow(now);
+      if (begin == end) return
       log.info(`Going to compress flows between ${new Date(begin * 1000)} - ${new Date(end * 1000)}`)
       for (let i = 0; i < (end - begin) / this.step; i++) {
         const beginTs = begin + this.step * i
         const endTs = begin + this.step * (i + 1)
         const flows = await this.loadFlows(beginTs, endTs)
-        await this.save(beginTs, endTs, flows)
+        await this.save(endTs, await this.compress(flows))
       }
-      await rclient.setAsync(this.recentlyTickKey, end)
+      await this.checkAndCleanMem()
       log.info(`Compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     } catch (e) {
       log.error(`Compress flows error`, e)
     }
+    this.building = false;
   }
 
-  async save(begin, end, flows) { // might save to disk in future
-    const base64Str = await this.compress(flows)
-    const key = this.getKey(begin, end)
+  async save(ts, base64Str) {
+    const key = this.getKey(ts)
+    if (await rclient.existsAsync(key)) {
+      log.info("jack test the key is exist, then append the str", key)
+      const existsVal = await rclient.getAsync(key);
+      base64Str = existsVal + SPLIT_STRING + base64Str;
+    }
     await rclient.setAsync(key, base64Str)
-    await rclient.expireatAsync(key, end + this.maxInterval)
-    await this.checkAndCleanMem()
+    await rclient.expireatAsync(key, Math.ceil(ts + this.maxInterval))
+    await rclient.setAsync(this.lastestTsKey, ts)
   }
 
-  async getBuildingWindow() {
-    const now = new Date() / 1000
-    const nowTickTs = now - now % this.step
-    let recentlyTickTs = Number(await rclient.getAsync(this.recentlyTickKey) || 0)
-    if (nowTickTs - recentlyTickTs > this.maxInterval) {
-      recentlyTickTs = nowTickTs - this.maxInterval
+  async getBuildingWindow(now) {
+    const nowTickTs = now - now % this.step + this.step;
+    let lastestTs = Number(await rclient.getAsync(this.lastestTsKey) || 0)
+    if (nowTickTs - lastestTs > this.maxInterval) {
+      lastestTs = nowTickTs - this.maxInterval
     }
     return {
-      begin: recentlyTickTs,
+      begin: lastestTs,
       end: nowTickTs
     }
   }
@@ -217,6 +364,16 @@ class FlowCompressionSensor extends Sensor {
     log.debug(`Compress ${mergedFlows.length} flows, raw: ${str.length} deflate: ${deflateBuffer.length} base64:${base64Str.length}`)
     return base64Str
   }
+
+  async getCompreesedFlowsKey() {
+    const compressedFlowsKeys = await rclient.scanResults(this.getKey("*"), 1000) || []
+    return compressedFlowsKeys.filter(key => key != this.lastestTsKey).sort((a, b) => {
+      const ts1 = a.split(":")[2];
+      const ts2 = b.split(":")[2];
+      return ts1 > ts2 ? -1 : 1
+    })
+  }
+
 }
 
 
