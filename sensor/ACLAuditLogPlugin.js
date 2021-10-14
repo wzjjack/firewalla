@@ -493,7 +493,8 @@ class ACLAuditLogPlugin extends Sensor {
             timeSeriesWithTz.recordHit(`${hitType}:tag:${tag}`, tsWithTz, ct)
           }
 
-          sem.emitEvent({
+          // only record audit:drop
+          block && sem.emitEvent({
             type: "Flow2Stream",
             suppressEventLogging: true,
             raw: record,
