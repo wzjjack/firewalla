@@ -66,7 +66,7 @@ class AuditTool extends LogQuery {
     };
 
     if(entry.mac) {
-      f.device = flow.mac;
+      f.device = entry.mac;
     }
 
     if (entry.rl) {
