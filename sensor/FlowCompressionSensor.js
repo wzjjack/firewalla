@@ -59,6 +59,9 @@ class FlowCompressionSensor extends Sensor {
         return
       }
       const { raw, audit, type = "normal" } = event;
+      if (type == "wanBlock") {
+        log.info("jack test get wan block flow", raw)
+      }
       const queueObj = this.queueMap[type];
       if (queueObj) {
         const job = queueObj.createJob({ raw, audit });
