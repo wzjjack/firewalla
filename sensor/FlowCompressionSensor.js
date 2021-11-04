@@ -73,7 +73,7 @@ class FlowCompressionSensor extends Sensor {
       if (!fc.isFeatureOn(featureName)) {
         return
       }
-      // rebuild wanBlock compressed flows
+      // re-build wanBlock compressed flows
       await this.buildWanBlockCompressedFlows();
     })
 
@@ -207,7 +207,7 @@ class FlowCompressionSensor extends Sensor {
     this.building = true;
     await Promise.all([this.build(now), this.buildWanBlockCompressedFlows()])
     this.building = false;
-    log.info("jack test building done");
+    log.info("Flows compression building done");
   }
 
   async globalOff() {
@@ -364,7 +364,6 @@ class FlowCompressionSensor extends Sensor {
     await rclient.delAsync(this.wanCompressedFlowsKey);
     while (!completed) {
       try {
-        log.info("jack test options.ts", options.ts)
         const flows = await flowTool.prepareRecentFlows({}, JSON.parse(JSON.stringify(options))) || []
         if (flows.length < options.count) {
           completed = true
@@ -384,7 +383,6 @@ class FlowCompressionSensor extends Sensor {
         completed = true
       }
     }
-    log.info("jack test wan block", allFlows.length)
     if (allFlows.length > 0) {
       const ts = allFlows[allFlows.length - 1].ts;
       await this.appendAndSave(ts, await this.compress(allFlows), 'wanBlock')
@@ -433,30 +431,8 @@ class FlowCompressionSensor extends Sensor {
       await this.appendAndSave(ts, await this.compress(allFlows))
     }
   }
-
-  mergeFlows(flows) {
-    return flows;
-    if (!flows || flows.length == 0) return [];
-    let stash = flows[0];
-    const mergedFlows = [stash];
-    const compareKeys = ["ltype", "fd", "device", "protocol", "host", "ip", "domain"]
-    for (var i = 1; i < flows.length; i++) {
-      const flow = flows[i]
-      if (_.isEqual(_.pick(stash, compareKeys), _.pick(flow, compareKeys))) {
-        stash.count += flow.count
-        stash.download += flow.download
-        stash.upload += flow.upload
-        stash.duration += flow.duration
-      } else {
-        stash = flow
-        mergedFlows.push(stash)
-      }
-    }
-    return mergedFlows
-  }
   async compress(flows) {
-    const mergedFlows = this.mergeFlows(flows)
-    const str = JSON.stringify(mergedFlows)
+    const str = JSON.stringify(flows)
     const deflateBuffer = await deflateAsync(str)
     const base64Str = deflateBuffer.toString('base64')
     log.debug(`Compress ${mergedFlows.length} flows, raw: ${str.length} deflate: ${deflateBuffer.length} base64:${base64Str.length}`)

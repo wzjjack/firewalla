@@ -217,7 +217,6 @@ class LogQuery {
   }
 
   formatMacGUID(hostManager, mac) {
-    log.info("jack test mac",mac,identityManager.isGUID(mac))
     if (!_.isString(mac)) return null
     if (hostTool.isMacAddress(mac)) {
       const host = hostManager.getHostFastByMAC(mac);
@@ -233,7 +232,6 @@ class LogQuery {
       return identityManager.getGUID(identity)
     } else if (mac.startsWith(Constants.NS_INTERFACE + ':')) {
       const intf = networkProfileManager.getNetworkProfile(mac.split(Constants.NS_INTERFACE + ':')[1]);
-      log.info("jack test intf",intf);
       if (!intf) {
         return null;
       }
