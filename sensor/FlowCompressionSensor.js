@@ -368,7 +368,7 @@ class FlowCompressionSensor extends Sensor {
     log.info(`Going to compress wan block flows`)
     let completed = false
     let allFlows = []
-    const now = Date.now / 1000
+    const now = Date.now() / 1000
     const options = {
       ts: now,
       audit: true,
@@ -392,7 +392,6 @@ class FlowCompressionSensor extends Sensor {
           await this.appendAndSave(ts, await this.compress(allFlows), 'wanBlock')
           allFlows = [];
         }
-        log.info(`Wanblock compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
       } catch (e) {
         log.error(`Load flows error`, e)
         completed = true
@@ -402,6 +401,7 @@ class FlowCompressionSensor extends Sensor {
       const ts = allFlows[allFlows.length - 1].ts;
       await this.appendAndSave(ts, await this.compress(allFlows), 'wanBlock')
     }
+    log.info(`Wanblock compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     this.wanBlockBuilding = false;
   }
 
