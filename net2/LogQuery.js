@@ -216,6 +216,7 @@ class LogQuery {
   }
 
   formatMacGUID(hostManager, mac) {
+    log.info("jack test mac",mac,identityManager.isGUID(mac))
     if (!_.isString(mac)) return null
     if (hostTool.isMacAddress(mac)) {
       const host = hostManager.getHostFastByMAC(mac);
