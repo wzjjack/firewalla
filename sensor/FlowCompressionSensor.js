@@ -300,10 +300,10 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async build(now) {
-    while (this.building) {
+    while (this.normalBuilding) {
       await delay(30 * 1000)
     }
-    this.building = true;
+    this.normalBuilding = true;
     try {
       const { begin, end } = await this.getBuildingWindow(now);
       if (begin == end) return
@@ -318,7 +318,7 @@ class FlowCompressionSensor extends Sensor {
     } catch (e) {
       log.error(`Compress flows error`, e)
     }
-    this.building = false;
+    this.normalBuilding = false;
   }
 
   async clean(ts) {
@@ -348,6 +348,10 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async buildWanBlockCompressedFlows() {
+    while (this.wanBlockBuilding) {
+      await delay(30 * 1000)
+    }
+    this.wanBlockBuilding = true;
     log.info(`Going to compress wan block flows`)
     let completed = false
     let allFlows = []
@@ -380,10 +384,12 @@ class FlowCompressionSensor extends Sensor {
         completed = true
       }
     }
+    log.info("jack test wan block", allFlows.length)
     if (allFlows.length > 0) {
       const ts = allFlows[allFlows.length - 1].ts;
       await this.appendAndSave(ts, await this.compress(allFlows), 'wanBlock')
     }
+    this.wanBlockBuilding = false;
   }
 
   async loadFlows(begin, end) {

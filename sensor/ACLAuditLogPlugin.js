@@ -493,7 +493,7 @@ class ACLAuditLogPlugin extends Sensor {
             timeSeriesWithTz.recordHit(`${hitType}:tag:${tag}`, tsWithTz, ct)
           }
 
-          block && !mac.startsWith(Constants.NS_INTERFACE + ':') && sem.emitLocalEvent({
+          block && sem.emitLocalEvent({
             type: "Flow2Stream",
             suppressEventLogging: true,
             raw: Object.assign({}, record, { mac: mac }), // record the mac address here
