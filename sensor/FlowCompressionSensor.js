@@ -111,7 +111,7 @@ class FlowCompressionSensor extends Sensor {
       try {
         if (job && job.data) { // raw flow string
           const flow = await this.raw2Flow(job.data);
-          while (this.dumpingMap[type].dumping) {
+          while (this.dumpingMap[type]) {
             log.debug("deferred due to readableStream might be destoryed and re-create");
             await delay(3000)
           }
@@ -151,12 +151,11 @@ class FlowCompressionSensor extends Sensor {
 
   async dumpStreamFlows(ts, type) {
     log.info(`Start dump ${type} stream data to redis`)
-    const dumpingObj = this.dumpingMap[type];
     const streamObj = this.streamMap[type];
-    while (dumpingObj.dumping) {
+    while (this.dumpingMap[type]) {
       await delay(1000)
     }
-    dumpingObj.dumping = true;
+    this.dumpingMap[type] = true;
     try {
       if (streamObj.readableStream) {
         streamObj.readableStream.push(null); // readable stream EOF
@@ -169,7 +168,7 @@ class FlowCompressionSensor extends Sensor {
       log.info("DumpStreamFlows error", e)
     }
     log.info("Dump stream data to redis done")
-    dumpingObj.dumping = false
+    this.dumpingMap[type] = false
   }
 
   async raw2Flow(message) {
@@ -244,7 +243,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async apiRun() {
-    extensionManager.onGet("buildStatus", async (msg, data) => {
+    extensionManager.onGet("compressedflowsBuildStatus", async (msg, data) => {
       const lastestTs = Number(await rclient.getAsync(this.lastestTsKey) || 0)
       return { ts: lastestTs, building: this.building }
     })

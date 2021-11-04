@@ -36,7 +36,6 @@ const MAX_QUERY_COUNT = 2000;
 
 const Promise = require('bluebird');
 const _ = require('lodash');
-const { CONSTANTS } = require('./Ipset.js');
 
 class LogQuery {
 
