@@ -252,7 +252,8 @@ class LogQuery {
     } else if (options.macs && options.macs.length > 0) {
       log.info("options.macs",options.macs)
       for (const m of options.macs) {
-        const mac = this.formatMacGUID(hostManager, m)
+        // const mac = this.formatMacGUID(hostManager, m)
+        const mac = m
         if (mac) {
           allMacs.push(mac)
         }

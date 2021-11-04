@@ -241,10 +241,6 @@ class IdentityManager {
 
   isGUID(str) {
     const [ns, uid] = str && str.split(':', 2);
-    if(ns == "if"){
-      log.info("jack test str",ns,uid,this.allIdentities[ns])
-    }
-    
     if (this.allIdentities[ns])
       return true;
     return false;
