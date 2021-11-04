@@ -427,7 +427,7 @@ class FlowCompressionSensor extends Sensor {
           options.begin = flows[flows.length - 1].ts
         }
         allFlows = allFlows.concat(flows.filter(f => {
-          f && f.ltype != 'audit' && !f.device.startsWith(Constants.NS_INTERFACE + ':')
+          return f && f.ltype != 'audit' && f.device && !f.device.startsWith(Constants.NS_INTERFACE + ':')
         }))
         if (allFlows.length >= this.maxCount) {
           // compress and dump flows to redis if it exceed count 
