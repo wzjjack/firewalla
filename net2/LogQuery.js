@@ -36,6 +36,7 @@ const MAX_QUERY_COUNT = 2000;
 
 const Promise = require('bluebird');
 const _ = require('lodash');
+const { CONSTANTS } = require('./Ipset.js');
 
 class LogQuery {
 
@@ -230,6 +231,13 @@ class LogQuery {
         return null
       }
       return identityManager.getGUID(identity)
+    } else if (mac.startsWith(Constants.NS_INTERFACE + ':')) {
+      const intf = networkProfileManager.getNetworkProfile(mac.split(Constants.NS_INTERFACE + ':')[1]);
+      log.info("jack test intf",intf);
+      if (!intf) {
+        return null;
+      }
+      return mac
     }
   }
 
@@ -250,11 +258,8 @@ class LogQuery {
         throw new Error('Invalid mac value')
       }
     } else if (options.macs && options.macs.length > 0) {
-      log.info("options.macs",options.macs)
       for (const m of options.macs) {
-        log.info("jack test identityManager info",Object.keys(identityManager.allIdentities))
-        // const mac = this.formatMacGUID(hostManager, m)
-        const mac = m
+        const mac = this.formatMacGUID(hostManager, m)
         if (mac) {
           allMacs.push(mac)
         }
