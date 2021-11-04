@@ -248,7 +248,7 @@ class FlowCompressionSensor extends Sensor {
   async apiRun() {
     extensionManager.onGet("compressedflowsBuildStatus", async (msg, data) => {
       const lastestTs = Number(await rclient.getAsync(this.lastestTsKey) || 0)
-      return { ts: lastestTs, building: this.building }
+      return { ts: lastestTs, building: this.building, xx: 'xx' }
     })
 
     extensionManager.onGet("compressedflows", async (msg, data) => {
