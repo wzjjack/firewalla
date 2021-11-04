@@ -59,11 +59,11 @@ class FlowCompressionSensor extends Sensor {
       if (!fc.isFeatureOn(featureName)) {
         return
       }
-      const { raw, audit, type = "normal" } = event;
-      if (type == "wanBlock") {
+      const { raw, audit, ftype = "normal" } = event;
+      if (ftype == "wanBlock") {
         log.info("jack test get wan block flow", raw)
       }
-      const queueObj = this.queueMap[type];
+      const queueObj = this.queueMap[ftype];
       if (queueObj) {
         const job = queueObj.createJob({ raw, audit });
         job.timeout(60000).retries(2).save((err) => {
