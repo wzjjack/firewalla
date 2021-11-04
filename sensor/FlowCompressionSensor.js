@@ -227,7 +227,7 @@ class FlowCompressionSensor extends Sensor {
 
   async checkAndCleanMem() {
     const compressedFlowsKeys = await this.getCompreesedFlowsKey()
-    let compressedMem = Number(await rclient.memoryAsync("usage", this.wanCompressedFlowsKey()) || 0)
+    let compressedMem = Number(await rclient.memoryAsync("usage", this.wanCompressedFlowsKey) || 0)
     let delFlag = false
     for (const key of compressedFlowsKeys) {
       if (delFlag) { // delete all earlier keys
@@ -271,7 +271,7 @@ class FlowCompressionSensor extends Sensor {
       const str = await rclient.getAsync(this.getKey(endTs))
       str && compressedFlows.push(str)
     }
-    const wanBlockCompressedFlows = await rclient.getAsync(this.wanCompressedFlowsKey());
+    const wanBlockCompressedFlows = await rclient.getAsync(this.wanCompressedFlowsKey);
     wanBlockCompressedFlows && compressedFlows.push(wanBlockCompressedFlows)
     return compressedFlows
   }
@@ -357,7 +357,7 @@ class FlowCompressionSensor extends Sensor {
       count: 2000,
       macs: sysManager.getLogicInterfaces().map(i => `${Constants.NS_INTERFACE}:${i.uuid}`)
     }
-    await rclient.delAsync(this.wanCompressedFlowsKey());
+    await rclient.delAsync(this.wanCompressedFlowsKey);
     while (!completed) {
       try {
         log.info("jack test options.ts", options.ts)
