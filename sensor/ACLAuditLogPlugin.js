@@ -493,12 +493,12 @@ class ACLAuditLogPlugin extends Sensor {
             timeSeriesWithTz.recordHit(`${hitType}:tag:${tag}`, tsWithTz, ct)
           }
 
-          // only record device/vpn audit:drop
           block && !mac.startsWith(Constants.NS_INTERFACE + ':') && sem.emitLocalEvent({
             type: "Flow2Stream",
             suppressEventLogging: true,
             raw: Object.assign({}, record, { mac: mac }), // record the mac address here
-            audit: true
+            audit: true,
+            type: mac.startsWith(Constants.NS_INTERFACE + ':') ? "wanBlock" : "normal"
           })
         }
       }

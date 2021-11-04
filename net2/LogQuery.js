@@ -70,7 +70,7 @@ class LogQuery {
   stringToJSON(string) {
     try {
       return JSON.parse(string);
-    } catch(err) {
+    } catch (err) {
       log.debug('Failed to parse log', string)
       return null;
     }
@@ -176,7 +176,7 @@ class LogQuery {
       } else {
         // no more elements, remove feed from feeds
         feeds = feeds.filter(f => f != feed)
-        log.debug('Removing', feed.query.name, feed.options.direction || (feed.options.block ? 'block':'accept'), feed.options.mac, feed.options.ts)
+        log.debug('Removing', feed.query.name, feed.options.direction || (feed.options.block ? 'block' : 'accept'), feed.options.mac, feed.options.ts)
       }
 
       feed = options.asc ? _.minBy(feeds, 'options.ts') : _.maxBy(feeds, 'options.ts')
@@ -215,6 +215,24 @@ class LogQuery {
     return options
   }
 
+  formatMacGUID(hostManager, mac) {
+    if (!_.isString(mac)) return null
+    if (hostTool.isMacAddress(mac)) {
+      const host = hostManager.getHostFastByMAC(mac);
+      if (!host || !host.o.mac) {
+        return null
+      }
+      return mac
+    } else if (identityManager.isGUID(mac)) {
+      const identity = identityManager.getIdentityByGUID(mac);
+      if (!identity) {
+        return null
+      }
+      return identityManager.getGUID(identity)
+    }
+  }
+
+
   async expendMacs(options) {
     log.debug('Expending mac addresses from options', options)
 
@@ -224,20 +242,21 @@ class LogQuery {
 
     let allMacs = [];
     if (options.mac) {
-      if (!_.isString(options.mac)) throw new Error('Invalid host')
-
-      if (hostTool.isMacAddress(options.mac)) {
-        const host = hostManager.getHostFastByMAC(options.mac);
-        if (!host || !host.o.mac) {
-          throw new Error("Invalid Host");
+      const mac = this.formatMacGUID(hostManager, options.mac)
+      if (mac) {
+        allMacs.push(mac)
+      } else {
+        throw new Error('Invalid mac value')
+      }
+    } else if (options.macs && options.macs.length > 0) {
+      for (const m of options.macs) {
+        const mac = this.formatMacGUID(hostManager, m)
+        if (mac) {
+          allMacs.push(mac)
         }
-        allMacs.push(options.mac)
-      } else if (identityManager.isGUID(options.mac)) {
-        const identity = identityManager.getIdentityByGUID(options.mac);
-        if (!identity) {
-          throw new Error(`Identity GUID ${options.mac} not found`);
-        }
-        allMacs.push(identityManager.getGUID(identity))
+      }
+      if (allMacs.length == 0) {
+        throw new Error('Invalid macs value')
       }
     } else if (options.intf) {
       const intf = networkProfileManager.getNetworkProfile(options.intf);
@@ -265,10 +284,10 @@ class LogQuery {
       allMacs = await hostManager.getTagMacs(options.tag);
     } else {
       allMacs = hostManager.getActiveMACs();
-      allMacs.push(... identityManager.getAllIdentitiesGUID())
+      allMacs.push(...identityManager.getAllIdentitiesGUID())
 
       if (options.audit || options.block || this.includeFirewallaInterfaces())
-        allMacs.push(... sysManager.getLogicInterfaces().map(i => `${Constants.NS_INTERFACE}:${i.uuid}`))
+        allMacs.push(...sysManager.getLogicInterfaces().map(i => `${Constants.NS_INTERFACE}:${i.uuid}`))
     }
 
     if (!allMacs || !allMacs.length) return []
@@ -286,14 +305,14 @@ class LogQuery {
 
     log.verbose('----====', this.constructor.name, 'getAllLogs', JSON.stringify(_.omit(options, 'macs')))
 
-    const allMacs = options.macs || [ options.mac ]
+    const allMacs = options.macs || [options.mac]
 
     if (!Array.isArray(allMacs)) throw new Error('Invalid mac set', allMacs)
 
-    const feeds = allMacs.map(mac => { return { query: this.getDeviceLogs.bind(this), options: {mac} } })
+    const feeds = allMacs.map(mac => { return { query: this.getDeviceLogs.bind(this), options: { mac } } })
 
     // query less each time to improve perf
-    options = Object.assign({count: options.count}, options)
+    options = Object.assign({ count: options.count }, options)
 
     delete options.macs // for a cleaner debug log
     delete options.mac
@@ -348,7 +367,7 @@ class LogQuery {
       }
 
       return f;
-    }, {concurrency: 50}); // limit to 10
+    }, { concurrency: 50 }); // limit to 10
   }
 
   // override this
@@ -365,13 +384,13 @@ class LogQuery {
     const key = this.getLogKey(target, options);
 
     const zrange = (options.asc ? rclient.zrangebyscoreAsync : rclient.zrevrangebyscoreAsync).bind(rclient);
-    const results = await zrange(key, '(' + options.ts, options.ets, "LIMIT", 0 , options.count);
+    const results = await zrange(key, '(' + options.ts, options.ets, "LIMIT", 0, options.count);
 
-    if(results === null || results.length === 0)
+    if (results === null || results.length === 0)
       return [];
 
     const filter = this.filterOptions(options);
-    log.debug(this.constructor.name, 'getDeviceLogs', options.direction || (options.block ? 'block':'accept'), target, options.ts, JSON.stringify(filter))
+    log.debug(this.constructor.name, 'getDeviceLogs', options.direction || (options.block ? 'block' : 'accept'), target, options.ts, JSON.stringify(filter))
 
     const logObjects = results
       .map(str => {
