@@ -437,7 +437,7 @@ class FlowCompressionSensor extends Sensor {
     const str = JSON.stringify(flows)
     const deflateBuffer = await deflateAsync(str)
     const base64Str = deflateBuffer.toString('base64')
-    log.debug(`Compress ${mergedFlows.length} flows, raw: ${str.length} deflate: ${deflateBuffer.length} base64:${base64Str.length}`)
+    log.debug(`Compress ${flows.length} flows, raw: ${str.length} deflate: ${deflateBuffer.length} base64:${base64Str.length}`)
     return base64Str
   }
 
