@@ -319,7 +319,7 @@ class FlowCompressionSensor extends Sensor {
         await this.loadFlows(beginTs, endTs)
       }
       await this.checkAndCleanMem()
-      log.info(`Compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
+      log.info(`Normal compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
     } catch (e) {
       log.error(`Compress flows error`, e)
     }
@@ -360,8 +360,9 @@ class FlowCompressionSensor extends Sensor {
     log.info(`Going to compress wan block flows`)
     let completed = false
     let allFlows = []
+    const now = Date.now / 1000
     const options = {
-      ts: Date.now() / 1000,
+      ts: now,
       audit: true,
       count: 2000,
       macs: sysManager.getLogicInterfaces().map(i => `${Constants.NS_INTERFACE}:${i.uuid}`)
@@ -383,6 +384,7 @@ class FlowCompressionSensor extends Sensor {
           await this.appendAndSave(ts, await this.compress(allFlows), 'wanBlock')
           allFlows = [];
         }
+        log.info(`Wanblock compressed flows build complted, cost ${(new Date() / 1000 - now).toFixed(2)}`)
       } catch (e) {
         log.error(`Load flows error`, e)
         completed = true
