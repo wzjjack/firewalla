@@ -435,6 +435,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   mergeFlows(flows) {
+    return flows;
     if (!flows || flows.length == 0) return [];
     let stash = flows[0];
     const mergedFlows = [stash];
