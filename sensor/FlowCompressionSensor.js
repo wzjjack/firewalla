@@ -201,10 +201,13 @@ class FlowCompressionSensor extends Sensor {
       // losing data will be re-load by build when service restart
       const now = new Date() / 1000;
       const nowTickTs = now - now % this.step;
-      await this.dumpStreamFlows(nowTickTs);
+      await this.dumpStreamFlows(nowTickTs, "normal");
       await this.checkAndCleanMem();
     }, null, true)
-    await this.build(now);
+    this.building = true;
+    await Promise.all([this.build(now), this.buildWanBlockCompressedFlows()])
+    this.building = false;
+    log.info("jack test building done");
   }
 
   async globalOff() {
@@ -219,6 +222,7 @@ class FlowCompressionSensor extends Sensor {
     this.dumpingMap = {};
     this.cornJob && this.cornJob.stop();
     this.cornJob = null;
+    this.building = false;
   }
 
   async checkAndCleanMem() {
@@ -240,9 +244,9 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async apiRun() {
-    extensionManager.onGet("compressedLastestTs", async (msg, data) => {
+    extensionManager.onGet("buildStatus", async (msg, data) => {
       const lastestTs = Number(await rclient.getAsync(this.lastestTsKey) || 0)
-      return { ts: lastestTs }
+      return { ts: lastestTs, building: this.building }
     })
 
     extensionManager.onGet("compressedflows", async (msg, data) => {
@@ -344,6 +348,7 @@ class FlowCompressionSensor extends Sensor {
   }
 
   async buildWanBlockCompressedFlows() {
+    log.info(`Going to compress wan block flows`)
     let completed = false
     let allFlows = []
     const options = {
