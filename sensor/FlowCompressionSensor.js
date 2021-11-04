@@ -47,6 +47,9 @@ class FlowCompressionSensor extends Sensor {
     this.step = 60 * 60 // one hour
     this.maxInterval = 24 * 60 * 60 // 24 hours
     this.flowsType = ['normal', 'wanBlock']
+    this.queueMap = {};
+    this.streamMap = {};
+    this.dumpingMap = {};
   }
 
   async run() {
@@ -187,9 +190,6 @@ class FlowCompressionSensor extends Sensor {
 
   async globalOn() {
     const now = Date.now() / 1000;
-    this.queueMap = {};
-    this.streamMap = {};
-    this.dumpingMap = {};
     this.flowsType.map((type) => {
       this.setupFlowsQueue(type);
       this.setupStreams(type);

@@ -249,6 +249,7 @@ class LogQuery {
         throw new Error('Invalid mac value')
       }
     } else if (options.macs && options.macs.length > 0) {
+      log.info("options.macs",options.macs)
       for (const m of options.macs) {
         const mac = this.formatMacGUID(hostManager, m)
         if (mac) {
