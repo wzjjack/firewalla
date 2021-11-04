@@ -44,6 +44,7 @@ class FlowCompressionSensor extends Sensor {
     this.maxMem = (this.config && this.config.maxMem * platform.getCompresseMemMultiplier()) || 10 * 1024 * 1024
     this.lastestTsKey = "compressed:flows:lastest:ts"
     this.wanCompressedFlowsKey = "compressed:wanblock:flows"
+    this.buildingKey = "compressed:building"
     this.step = 60 * 60 // one hour
     this.maxInterval = 24 * 60 * 60 // 24 hours
     this.flowsType = ['normal', 'wanBlock']
@@ -206,9 +207,9 @@ class FlowCompressionSensor extends Sensor {
       await this.dumpStreamFlows(nowTickTs, "normal");
       await this.checkAndCleanMem();
     }, null, true)
-    this.building = true;
+    await rclient.setAsync(this.buildingKey, 1)
     await Promise.all([this.build(now), this.buildWanBlockCompressedFlows()])
-    this.building = false;
+    await rclient.setAsync(this.buildingKey, 0)
     log.info("Flows compression building done");
   }
 
@@ -224,7 +225,6 @@ class FlowCompressionSensor extends Sensor {
     this.dumpingMap = {};
     this.cornJob && this.cornJob.stop();
     this.cornJob = null;
-    this.building = false;
   }
 
   async checkAndCleanMem() {
@@ -248,7 +248,8 @@ class FlowCompressionSensor extends Sensor {
   async apiRun() {
     extensionManager.onGet("compressedflowsBuildStatus", async (msg, data) => {
       const lastestTs = Number(await rclient.getAsync(this.lastestTsKey) || 0)
-      return { ts: lastestTs, building: this.building, xx: 'xx' }
+      const building = await rclient.getAsync(this.buildingKey) == "1"
+      return { ts: lastestTs, building: building }
     })
 
     extensionManager.onGet("compressedflows", async (msg, data) => {
