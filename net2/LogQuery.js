@@ -252,6 +252,7 @@ class LogQuery {
     } else if (options.macs && options.macs.length > 0) {
       log.info("options.macs",options.macs)
       for (const m of options.macs) {
+        log.info("jack test identityManager info",Object.keys(identityManager.allIdentities))
         // const mac = this.formatMacGUID(hostManager, m)
         const mac = m
         if (mac) {
