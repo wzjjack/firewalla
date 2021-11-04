@@ -115,11 +115,12 @@ class FlowCompressionSensor extends Sensor {
       try {
         if (job && job.data) { // raw flow string
           const flow = await this.raw2Flow(job.data);
-          while (this.dumpingMap[type]) {
+          const streamObj = this.streamMap[type];
+          while (this.dumpingMap[type] || !streamObj) {
             log.debug("deferred due to readableStream might be destoryed and re-create");
             await delay(3000)
           }
-          this.streamMap[type].readableStream.push(JSON.stringify(flow) + SPLIT_STRING)
+          streamObj.readableStream.push(JSON.stringify(flow) + SPLIT_STRING)
         }
       } catch (e) {
         log.info("process job error", e);
@@ -136,7 +137,7 @@ class FlowCompressionSensor extends Sensor {
     const def = zlib.createDeflate();
     const zstream = readableStream.pipe(def);
     let chunks = [];
-    let streamObj = this.streamMap[type] || {};
+    const streamObj = {};
     streamObj.readableStream = readableStream;
     zstream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
     zstream.on('error', (err) => {
@@ -151,12 +152,13 @@ class FlowCompressionSensor extends Sensor {
       def.destroy();
       zstream.destroy();
     }
+    this.streamMap[type] = streamObj;
   }
 
   async dumpStreamFlows(ts, type) {
     log.info(`Start dump ${type} stream data to redis`)
     const streamObj = this.streamMap[type];
-    while (this.dumpingMap[type]) {
+    while (this.dumpingMap[type] || !streamObj) {
       await delay(1000)
     }
     this.dumpingMap[type] = true;
