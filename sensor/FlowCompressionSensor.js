@@ -78,7 +78,15 @@ class FlowCompressionSensor extends Sensor {
         return
       }
       // re-build wanBlock compressed flows
-      await this.buildWanBlockCompressedFlows();
+      try {
+        await this.buildWanBlockCompressedFlows();
+        const type = "wanBlock";
+        const streamObj = this.streamMap[type];
+        streamObj.destroyStreams(); // destory and re-create
+        await this.setupStreams(type);
+      } catch (e) {
+        log.warn("re-build wanBlock compressed flows error", e)
+      }
     })
 
     sem.on('DumpStreamFlows', async (event) => {
