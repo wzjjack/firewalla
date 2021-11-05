@@ -122,9 +122,10 @@ class FlowCompressionSensor extends Sensor {
           const flow = await this.raw2Flow(job.data);
           const streamObj = this.streamMap[type];
           while (this.dumpingMap[type] || !streamObj) {
-            log.debug("deferred due to readableStream might be destoryed and re-create");
+            log.info("deferred due to readableStream might be destoryed and re-create");
             await delay(3000)
           }
+          log.info(`get ${type} flow and push to streamObj.readableStream`)
           streamObj.readableStream.push(JSON.stringify(flow) + SPLIT_STRING)
         }
       } catch (e) {
