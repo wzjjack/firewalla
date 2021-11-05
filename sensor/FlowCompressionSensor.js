@@ -279,6 +279,7 @@ class FlowCompressionSensor extends Sensor {
     for (let i = 0; i < (end - begin) / this.step; i++) {
       const endTs = begin + this.step * (i + 1)
       const str = await rclient.getAsync(this.getKey(endTs))
+      log.info("jack test load comppresed flows", new Date(endTs * 1000), str && str.length)
       str && compressedFlows.push(str)
     }
     const wanBlockCompressedFlows = await rclient.getAsync(this.wanCompressedFlowsKey);
@@ -342,6 +343,7 @@ class FlowCompressionSensor extends Sensor {
     await rclient.appendAsync(key, base64Str + SPLIT_STRING);
     await rclient.expireatAsync(key, tickTs + this.maxInterval);
     type != "wanBlock" && await rclient.setAsync(this.lastestTsKey, ts);
+    log.info("appendAndSave type", ts, key, base64Str.length)
   }
 
   async getBuildingWindow(now) {
