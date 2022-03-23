@@ -300,12 +300,12 @@ class DataUsageSensor extends Sensor {
             const upload = await getHitsAsync(uploadKey, '1day', offsetDays) || [];
             if (i == 0) {
                 const stats = this.getStats({ download, upload }, offsetDays);
-                records.push({ ts: recordTs / 1000, stats: stats, days: offsetDays })
+                records.push({ ts: recordTs / 1000, stats: stats })
             } else {
                 // minus the dedup count
                 const monthlyDays = (records[i - 1].ts * 1000 - recordTs) / oneDay;
                 const stats = this.getStats({ download, upload }, monthlyDays);
-                records.push({ ts: recordTs / 1000, stats: stats, days: monthlyDays })
+                records.push({ ts: recordTs / 1000, stats: stats })
             }
         }
         records.shift();
