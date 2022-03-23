@@ -277,7 +277,7 @@ class DataUsageSensor extends Sensor {
     }
 
     async generateLast12MonthDataUsage(planDay) {
-        const lastTs = await rclient.getAsync('mothly:data:usage:lastTs');
+        const lastTs = await rclient.getAsync('monthly:data:usage:lastTs');
         const now = new Date();
         const days = now.getDate(), month = now.getMonth(),
             year = now.getFullYear();
@@ -312,16 +312,16 @@ class DataUsageSensor extends Sensor {
         await this.dumpToRedis(records);
     }
     async dumpToRedis(records) {
-        // mothly:data:usage:ts
-        // mothly:data:usage:lastTs
+        // monthly:data:usage:ts
+        // monthly:data:usage:lastTs
         const multi = rclient.multi();
         const expiring = 60 * 60 * 24 * 365; // one year
         for (const record of records) {
-            const key = `mothly:data:usage:${record.ts}`;
+            const key = `monthly:data:usage:${record.ts}`;
             multi.set(key, JSON.stringify(record));
             multi.expireat(key, record.ts + expiring);
         }
-        multi.set('mothly:data:usage:lastTs', records[0].ts);
+        multi.set('monthly:data:usage:lastTs', records[0].ts);
         await multi.execAsync();
     }
     getStats(stats, days) {
@@ -331,10 +331,10 @@ class DataUsageSensor extends Sensor {
         return hostManager.generateStats(stats)
     }
     async getLast12monthlyDataUsage() {
-        const keys = await rclient.scanResults("mothly:data:usage:*");
+        const keys = await rclient.scanResults("monthly:data:usage:*");
         let records = [];
         for (const key of keys) {
-            if (key == "mothly:data:usage:lastTs") continue;
+            if (key == "monthly:data:usage:lastTs") continue;
             try {
                 const record = await rclient.getAsync(key);
                 records.push(JSON.parse(record));
