@@ -277,6 +277,7 @@ class DataUsageSensor extends Sensor {
     }
 
     async generateLast12MonthDataUsage(planDay) {
+        log.info("Going to generate monthly data usage");
         const lastTs = await rclient.getAsync('monthly:data:usage:lastTs');
         const now = new Date();
         const days = now.getDate(), month = now.getMonth(),
