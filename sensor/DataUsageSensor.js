@@ -295,7 +295,7 @@ class DataUsageSensor extends Sensor {
                 recordTs = new Date(year, month - i, planDay);
             }
             if (recordTs < lastTs) break;
-            const offsetDays = Math.floor((today - recordTs) / oneDay);
+            const offsetDays = Math.floor((today - recordTs) / oneDay) + 1;
             const download = await getHitsAsync(downloadKey, '1day', offsetDays) || [];
             const upload = await getHitsAsync(uploadKey, '1day', offsetDays) || [];
             if (i == 0) {
