@@ -303,7 +303,7 @@ class DataUsageSensor extends Sensor {
                 records.push({ ts: recordTs / 1000, stats: stats, days: offsetDays })
             } else {
                 // minus the dedup count
-                const monthlyDays = (recordTs - records[i - 1].ts * 1000) / oneDay;
+                const monthlyDays = (records[i - 1].ts * 1000 - recordTs) / oneDay;
                 const stats = this.getStats({ download, upload }, monthlyDays);
                 records.push({ ts: recordTs / 1000, stats: stats, days: monthlyDays })
             }
