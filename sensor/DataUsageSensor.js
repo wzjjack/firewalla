@@ -276,7 +276,7 @@ class DataUsageSensor extends Sensor {
         }, null, true)
     }
 
-    async generateLast12MonthDataUsage(date) {
+    async generateLast12MonthDataUsage(planDay) {
         const lastTs = await rclient.getAsync('mothly:data:usage:lastTs');
         const now = new Date();
         const days = now.getDate(), month = now.getMonth(),
@@ -288,35 +288,27 @@ class DataUsageSensor extends Sensor {
         const uploadKey = `upload`;
         const slots = 12;
         for (let i = 0; i < slots; i++) {
-            let record;
+            let recordTs;
             if (month - i < 0) {
-                record = new Date(year - 1, month - i + 12, date);
+                recordTs = new Date(year - 1, month - i + 12, planDay);
             } else {
-                record = new Date(year, month - i, date);
+                recordTs = new Date(year, month - i, planDay);
             }
-            if (record < lastTs) break;
-            const offsetDays = Math.floor((today - record) / oneDay);
+            if (recordTs < lastTs) break;
+            const offsetDays = Math.floor((today - recordTs) / oneDay);
             const download = await getHitsAsync(downloadKey, '1day', offsetDays) || [];
             const upload = await getHitsAsync(uploadKey, '1day', offsetDays) || [];
             if (i == 0) {
                 const stats = this.getStats({ download, upload }, offsetDays);
-                records.push({ ts: record / 1000, stats: stats, days: offsetDays })
+                records.push({ ts: recordTs / 1000, stats: stats, days: offsetDays })
             } else {
                 // minus the dedup count
-                const stats = this.getStats({ download, upload }, offsetDays - records[i - 1].days);
-                records.push({ ts: record / 1000, stats: stats, days: offsetDays - records[i - 1].days })
+                const monthlyDays = (recordTs - records[i - 1].ts * 1000) / oneDay;
+                const stats = this.getStats({ download, upload }, monthlyDays);
+                records.push({ ts: recordTs / 1000, stats: stats, days: monthlyDays })
             }
         }
-        if (days > date) { // need to minus the redunt days on the fisrt record
-            const reduntDays = days - date;
-            const download = await getHitsAsync(downloadKey, '1day', reduntDays) || [];
-            const upload = await getHitsAsync(uploadKey, '1day', reduntDays) || [];
-            const stats = this.getStats({ download, upload }, reduntDays);
-            records[0].days = records[0].days - reduntDays;
-            records[0].stats = stats;
-        } else {
-            records.shift();
-        }
+        records.shift();
         await this.dumpToRedis(records);
     }
     async dumpToRedis(records) {
@@ -342,6 +334,7 @@ class DataUsageSensor extends Sensor {
         const keys = await rclient.scanResults("mothly:data:usage:*");
         let records = [];
         for (const key of keys) {
+            if (key == "mothly:data:usage:lastTs") continue;
             try {
                 const record = await rclient.getAsync(key);
                 records.push(JSON.parse(record));
@@ -349,7 +342,8 @@ class DataUsageSensor extends Sensor {
                 log.warn(`Get ${key} error`, e)
             }
         }
-        return records.sort((a, b) => a.ts - b.ts);
+        records.sort((a, b) => a.ts > b.ts ? 1 : -1);
+        return records;
     }
 }
 
