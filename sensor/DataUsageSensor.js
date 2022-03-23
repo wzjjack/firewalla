@@ -21,6 +21,8 @@ const HostManager = require("../net2/HostManager.js");
 const hostManager = new HostManager();
 const util = require('util');
 const getHitsAsync = util.promisify(timeSeries.getHits).bind(timeSeries);
+const timeSeriesWithTz = require("../util/TimeSeries").getTimeSeriesWithTz();
+const getHitsWithTzAsync = util.promisify(timeSeriesWithTz.getHits).bind(timeSeriesWithTz);
 const flowTool = require('../net2/FlowTool');
 const Alarm = require('../alarm/Alarm.js');
 const AlarmManager2 = require('../alarm/AlarmManager2.js');
@@ -35,9 +37,12 @@ const abnormalBandwidthUsageCooldown = fc.getTimingConfig("alarm.abnormal_bandwi
 const suffixList = require('../vendor_lib/publicsuffixlist/suffixList');
 const validator = require('validator');
 const sysManager = require('../net2/SysManager.js');
-
+const _ = require('lodash');
+const CronJob = require('cron').CronJob;
+const sem = require('./SensorEventManager.js').getInstance();
+const extensionManager = require('../sensor/ExtensionManager.js')
 class DataUsageSensor extends Sensor {
-    run() {
+    async run() {
         this.refreshInterval = (this.config.refreshInterval || 15) * 60 * 1000;
         this.ratio = this.config.ratio || 1.2;
         this.analytics_hours = this.config.analytics_hours || 8;
@@ -49,6 +54,12 @@ class DataUsageSensor extends Sensor {
         this.dataPlanMinPercentage = this.config.dataPlanMinPercentage || 0.8;
         this.slot = 4// 1hour 4 slots
         this.hookFeature();
+        await this.monthlyDataUsageChecker();
+    }
+    async apiRun() {
+        extensionManager.onGet("last12monthlyDataUsage", async (msg, data) => {
+            return this.getLast12monthlyDataUsage();
+        });
     }
     job() {
         fc.isFeatureOn(abnormalBandwidthUsageFeatureName) && this.checkDataUsage();
@@ -150,8 +161,8 @@ class DataUsageSensor extends Sensor {
         }
         let intfId = null;
         if (host.o.ipv4Addr) {
-          const intf = sysManager.getInterfaceViaIP(host.o.ipv4Addr);
-          intfId = intf && intf.uuid;
+            const intf = sysManager.getInterfaceViaIP(host.o.ipv4Addr);
+            intfId = intf && intf.uuid;
         }
         let alarm = new Alarm.AbnormalBandwidthUsageAlarm(new Date() / 1000, name, {
             "p.device.mac": mac,
@@ -202,9 +213,8 @@ class DataUsageSensor extends Sensor {
     }
     async checkMonthlyDataUsage() {
         log.info("Start check monthly data usage")
-        let dataPlan = await rclient.getAsync('sys:data:plan');
+        const dataPlan = await this.getDataPlan();
         if (!dataPlan) return;
-        dataPlan = JSON.parse(dataPlan);
         const { date, total } = dataPlan;
         const { totalDownload, totalUpload, monthlyBeginTs,
             monthlyEndTs, download, upload
@@ -240,6 +250,108 @@ class DataUsageSensor extends Sensor {
             await rclient.expireatAsync(key, parseInt(new Date() / 1000) + expiring);
             return false;
         }
+    }
+
+    async getDataPlan() {
+        let dataPlan = await rclient.getAsync('sys:data:plan');
+        if (!dataPlan) return;
+        dataPlan = JSON.parse(dataPlan);
+        return dataPlan
+    }
+
+    async monthlyDataUsageChecker() {
+        sem.on('DataPlan:Updated', (event) => {
+            const date = event && event.date;
+            if (date) {
+                this.cornJob && this.cornJob.stop();
+                this.cornJob = new CronJob(`0 0 * ${date} * *`, async () => {
+                    await this.generateLast12MonthDataUsage(date);
+                }, null, true)
+            }
+        });
+        const dataPlan = await this.getDataPlan();
+        if (!dataPlan) return;
+        const { date } = dataPlan;
+        await this.generateLast12MonthDataUsage(date);
+        this.cornJob = new CronJob(`0 0 * ${date} * *`, async () => {
+            await this.generateLast12MonthDataUsage(date);
+        }, null, true)
+    }
+
+    async generateLast12MonthDataUsage(date) {
+        const lastTs = await rclient.getAsync('mothly:data:usage:lastTs');
+        const now = new Date();
+        const days = now.getDate(), month = now.getMonth(),
+            year = now.getFullYear();
+        const today = new Date(year, month, days);
+        const records = [];
+        const oneDay = 24 * 60 * 60 * 1000;
+        const downloadKey = `download`;
+        const uploadKey = `upload`;
+        const slots = 12;
+        for (let i = 0; i < slots; i++) {
+            let record;
+            if (month - i < 0) {
+                record = new Date(year - 1, month - i + 12, date);
+            } else {
+                record = new Date(year, month - i, date);
+            }
+            if (record < lastTs) break;
+            const recordDays = Math.floor((today - record) / oneDay);
+            const download = await getHitsWithTzAsync(downloadKey, '1day', recordDays) || [];
+            const upload = await getHitsWithTzAsync(uploadKey, '1day', recordDays) || [];
+            const total = this.calcuTotal({ upload, download });
+            if (i == 0) {
+                records.push({ ts: record / 1000, total: total, days: recordDays })
+            } else {
+                // minus the dedup count
+                records.push({ ts: record / 1000, total: total - records[i - 1].total, days: recordDays - records[i - 1].days })
+            }
+        }
+        if (days > date) { // need to minus the redunt days on the fisrt record
+            const reduntDays = days - date;
+            const download = await getHitsWithTzAsync(downloadKey, '1day', reduntDays) || [];
+            const upload = await getHitsWithTzAsync(uploadKey, '1day', reduntDays) || [];
+            const total = this.calcuTotal({ upload, download });
+            records[0].days = records[0].days - reduntDays;
+            records[0].total = records[0].total - total;
+        } else {
+            records.shift();
+        }
+        await this.dumpToRedis(records);
+    }
+    async dumpToRedis(records) {
+        // mothly:data:usage:ts
+        // mothly:data:usage:lastTs
+        const multi = rclient.multi();
+        const expiring = 60 * 60 * 24 * 365; // one year
+        for (const record of records) {
+            const key = `mothly:data:usage:${record.ts}`;
+            multi.set(key, JSON.stringify(record));
+            multi.expireat(key, record.ts + expiring);
+        }
+        multi.set('mothly:data:usage:lastTs', records[0].ts);
+        await multi.execAsync();
+    }
+    calcuTotal(stats) {
+        let total = 0;
+        for (const metric in stats) {
+            total += _.sumBy(stats[metric], 1)
+        }
+        return total
+    }
+    async getLast12monthlyDataUsage() {
+        const keys = await rclient.scanResults("mothly:data:usage:*");
+        let records = [];
+        for (const key of keys) {
+            try {
+                const record = await rclient.getAsync(key);
+                records.push(JSON.parse(record));
+            } catch (e) {
+                log.warn(`Get ${key} error`, e)
+            }
+        }
+        return records.sort((a, b) => a.ts - b.ts);
     }
 }
 
