@@ -21,8 +21,6 @@ const HostManager = require("../net2/HostManager.js");
 const hostManager = new HostManager();
 const util = require('util');
 const getHitsAsync = util.promisify(timeSeries.getHits).bind(timeSeries);
-const timeSeriesWithTz = require("../util/TimeSeries").getTimeSeriesWithTz();
-const getHitsWithTzAsync = util.promisify(timeSeriesWithTz.getHits).bind(timeSeriesWithTz);
 const flowTool = require('../net2/FlowTool');
 const Alarm = require('../alarm/Alarm.js');
 const AlarmManager2 = require('../alarm/AlarmManager2.js');
@@ -297,24 +295,25 @@ class DataUsageSensor extends Sensor {
                 record = new Date(year, month - i, date);
             }
             if (record < lastTs) break;
-            const recordDays = Math.floor((today - record) / oneDay);
-            const download = await getHitsWithTzAsync(downloadKey, '1day', recordDays) || [];
-            const upload = await getHitsWithTzAsync(uploadKey, '1day', recordDays) || [];
-            const total = this.calcuTotal({ upload, download });
+            const offsetDays = Math.floor((today - record) / oneDay);
+            const download = await getHitsAsync(downloadKey, '1day', offsetDays) || [];
+            const upload = await getHitsAsync(uploadKey, '1day', offsetDays) || [];
             if (i == 0) {
-                records.push({ ts: record / 1000, total: total, days: recordDays })
+                const stats = this.getStats({ download, upload }, offsetDays);
+                records.push({ ts: record / 1000, stats: stats, days: offsetDays })
             } else {
                 // minus the dedup count
-                records.push({ ts: record / 1000, total: total - records[i - 1].total, days: recordDays - records[i - 1].days })
+                const stats = this.getStats({ download, upload }, offsetDays - records[i - 1].days);
+                records.push({ ts: record / 1000, stats: stats, days: offsetDays - records[i - 1].days })
             }
         }
         if (days > date) { // need to minus the redunt days on the fisrt record
             const reduntDays = days - date;
-            const download = await getHitsWithTzAsync(downloadKey, '1day', reduntDays) || [];
-            const upload = await getHitsWithTzAsync(uploadKey, '1day', reduntDays) || [];
-            const total = this.calcuTotal({ upload, download });
+            const download = await getHitsAsync(downloadKey, '1day', reduntDays) || [];
+            const upload = await getHitsAsync(uploadKey, '1day', reduntDays) || [];
+            const stats = this.getStats({ download, upload }, reduntDays);
             records[0].days = records[0].days - reduntDays;
-            records[0].total = records[0].total - total;
+            records[0].stats = stats;
         } else {
             records.shift();
         }
@@ -333,12 +332,11 @@ class DataUsageSensor extends Sensor {
         multi.set('mothly:data:usage:lastTs', records[0].ts);
         await multi.execAsync();
     }
-    calcuTotal(stats) {
-        let total = 0;
+    getStats(stats, days) {
         for (const metric in stats) {
-            total += _.sumBy(stats[metric], 1)
+            stats[metric] = stats[metric].slice(0, days)
         }
-        return total
+        return hostManager.generateStats(stats)
     }
     async getLast12monthlyDataUsage() {
         const keys = await rclient.scanResults("mothly:data:usage:*");
