@@ -267,8 +267,7 @@ class DataUsageSensor extends Sensor {
                 }, null, true)
             }
         });
-        const dataPlan = await this.getDataPlan();
-        if (!dataPlan) return;
+        const dataPlan = await this.getDataPlan() || { date: 1 };
         const { date } = dataPlan;
         await this.generateLast12MonthDataUsage(date);
         this.cornJob = new CronJob(`0 0 * ${date} * *`, async () => {
@@ -295,7 +294,7 @@ class DataUsageSensor extends Sensor {
             } else {
                 recordTs = new Date(year, month - i, planDay);
             }
-            if (recordTs < lastTs) break;
+            if (recordTs < lastTs * 1000) break;
             const offsetDays = Math.floor((today - recordTs) / oneDay) + 1;
             const download = await getHitsAsync(downloadKey, '1day', offsetDays) || [];
             const upload = await getHitsAsync(uploadKey, '1day', offsetDays) || [];
