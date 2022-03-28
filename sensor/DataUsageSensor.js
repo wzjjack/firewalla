@@ -297,6 +297,7 @@ class DataUsageSensor extends Sensor {
             }
             if (recordTs < lastTs * 1000) break;
             const offsetDays = Math.floor((today - recordTs) / oneDay) + this.offsetSlot();
+            log.info("jack test offsetDays offsetSlot", offsetDays, this.offsetSlot(), (today - recordTs) / oneDay)
             const download = await getHitsAsync(downloadKey, '1day', offsetDays) || [];
             const upload = await getHitsAsync(uploadKey, '1day', offsetDays) || [];
             if (i == 0) {
