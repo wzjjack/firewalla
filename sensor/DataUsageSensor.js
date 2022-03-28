@@ -318,10 +318,7 @@ class DataUsageSensor extends Sensor {
         const d = new Date();
         const offset = d.getTimezoneOffset(); // in mins
         const date = d.getDate();
-
-        const utcD = new Date(d + (offset * 60 * 1000)).getDate();
-        log.info("jack test date", date, offset);
-        log.info("jack test utcD", utcD);
+        const utcD = new Date(d.getTime() + (offset * 60 * 1000)).getDate();
         if (date != utcD) { // if utc date not equal with current date
             return offset < 0 ? 0 : 2
         }
