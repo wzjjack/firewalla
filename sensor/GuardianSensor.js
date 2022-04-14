@@ -373,10 +373,24 @@ class GuardianSensor extends Sensor {
     const mspId = await this.getMspId();
     if (controller && this.socket) {
       const encryptedMessage = message.message;
-      const decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
-      decryptedMessage.mtype = decryptedMessage.message.mtype;
-      const response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
-
+      let response, expired = false;
+      const rkeyts = message.rkeyts;
+      if (rkeyts) {
+        const localRkeyts = cw.getCloud().getRKeyTimestamp(gid);
+        if (rkeyts !== localRkeyts) {
+          log.error(`Unmatched rekey timestamp, likely the key is already rotated, app ts: ${new Date(rkeyts)}, box ts: ${new Date(localRkeyts)}`);
+          expired = true;
+          response = {
+            code: 412,
+            message: "Unmatched rekey timestamp"
+          }
+        }
+      }
+      if (!expired) {
+        const decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
+        decryptedMessage.mtype = decryptedMessage.message.mtype;
+        response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
+      }
       const input = Buffer.from(JSON.stringify(response), 'utf8');
       const output = await deflateAsync(input);
 
