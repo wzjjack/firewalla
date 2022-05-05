@@ -63,7 +63,7 @@ class ActionPlugin extends Sensor {
       const result = {
         count: actionObjects.length,
         actions: actionObjects,
-        nextTs: actionObjects.length ? actionObjects[logs.length - 1].ts : null
+        nextTs: actionObjects.length ? actionObjects[actionObjects.length - 1].ts : null
       }
       return result;
     } catch (e) {
