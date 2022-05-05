@@ -48,7 +48,6 @@ class ActionPlugin extends Sensor {
       if (!count) count = 200;
       ts = ts ? `(${ts}` : '-inf';
       const results = await rclient.zrangebyscoreAsync(key, ts, ets, "LIMIT", 0, count);
-      log.info("jack test results", results);
       if (results === null || results.length === 0) {
         return [];
       }
