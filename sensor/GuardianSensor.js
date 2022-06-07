@@ -386,11 +386,19 @@ class GuardianSensor extends Sensor {
     if (controller && this.socket) {
       const encryptedMessage = message.message;
       const replyid = message.replyid; // replyid will not encrypted
-      let response, decryptedMessage, code = 200;
+      let response, decryptedMessage, code = 200, encryptedResponse;
       try {
         decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
         decryptedMessage.mtype = decryptedMessage.message.mtype;
         response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
+        const input = Buffer.from(JSON.stringify(response), 'utf8');
+        const output = await deflateAsync(input);
+        const compressedResponse = JSON.stringify({
+          compressed: 1,
+          compressMode: 1,
+          data: output.toString('base64')
+        });
+        encryptedResponse = await encryptMessageAsync(gid, compressedResponse);
       } catch (err) {
         log.warn(`Process web message error`, err);
         if (err && err.message == "decrypt_error") {
@@ -399,16 +407,6 @@ class GuardianSensor extends Sensor {
           code = 500; // "Unknown error"
         }
       }
-      const input = Buffer.from(JSON.stringify(response), 'utf8');
-      const output = await deflateAsync(input);
-
-      const compressedResponse = JSON.stringify({
-        compressed: 1,
-        compressMode: 1,
-        data: output.toString('base64')
-      });
-
-      const encryptedResponse = await encryptMessageAsync(gid, compressedResponse);
 
       try {
         if (this.socket) {
