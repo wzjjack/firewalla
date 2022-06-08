@@ -254,7 +254,7 @@ class GuardianSensor extends Sensor {
     const key = `send_to_box_${gid}`;
     this.socket.on(key, (message) => {
       if (message.gid === gid) {
-        this.onMessage({ gid, message, socket: this.suportSocket, mspId: mspId }).catch((err) => {
+        this.onMessage({ gid, message, socket: this.socket, mspId: mspId }).catch((err) => {
           log.error(`Failed to process message from group ${gid}`, err);
         });
       }
