@@ -463,7 +463,7 @@ class GuardianSensor extends Sensor {
   }
 
   async isSupportStatusOn() {
-    const status = rclient.getAsync(supportMspStatausKey);
+    const status = await rclient.getAsync(supportMspStatausKey);
     return status == "1";
   }
 
