@@ -44,11 +44,14 @@ const encryptMessageAsync = Promise.promisify(cw.getCloud().encryptMessage).bind
 const zlib = require('zlib');
 const deflateAsync = Promise.promisify(zlib.deflate);
 const rp = require('request-promise');
+
 class GuardianSensor extends Sensor {
   constructor() {
     super();
     this.realtimeExpireDate = 0;
     this.realtimeRunning = 0;
+    this.supportMsp = (this.config && this.config.supportMsp) ||
+      { id: "0eba60fd-0155-4528-9c32-3b765057433e", server: "https://support.firewalla.net", region: "" }
   }
 
   async apiRun() {
@@ -109,7 +112,13 @@ class GuardianSensor extends Sensor {
       await this.start();
     }
     await this.handlLegacy();
+
+    const supportStatusOn = await this.isSupportStatusOn();
+    if (supportStatusOn) {
+      await this.connect2SupportMsp();
+    }
   }
+
   async handlLegacy() {
     try {
       // box might be removed from msp but it was offline before
@@ -245,7 +254,7 @@ class GuardianSensor extends Sensor {
     const key = `send_to_box_${gid}`;
     this.socket.on(key, (message) => {
       if (message.gid === gid) {
-        this.onMessage(gid, message).catch((err) => {
+        this.onMessage({ gid, message, socket: this.suportSocket, mspId: mspId }).catch((err) => {
           log.error(`Failed to process message from group ${gid}`, err);
         });
       }
@@ -380,10 +389,10 @@ class GuardianSensor extends Sensor {
     }
   }
 
-  async onMessage(gid, message) {
+  async onMessage(options) {
+    const { gid, message, socket, mspId } = options;
     const controller = await cw.getNetBotController(gid);
-    const mspId = await this.getMspId();
-    if (controller && this.socket) {
+    if (controller && socket) {
       const encryptedMessage = message.message;
       const replyid = message.replyid; // replyid will not encrypted
       let response, decryptedMessage, code = 200, encryptedResponse;
@@ -409,8 +418,8 @@ class GuardianSensor extends Sensor {
       }
 
       try {
-        if (this.socket) {
-          this.socket.emit("send_from_box", {
+        if (socket) {
+          socket.emit("send_from_box", {
             message: encryptedResponse,
             gid: gid,
             mspId: mspId,
@@ -423,6 +432,59 @@ class GuardianSensor extends Sensor {
         log.error('Socket IO connection error', err);
       }
     }
+  }
+
+
+  async isSupportStatusOn() {
+    return true; // default on for debug purpose
+  }
+
+  async connect2SupportMsp() {
+    const server = this.supportMsp.server;
+    if (!server) {
+      throw new Error("socketio server not set");
+    }
+
+    if (this.suportSocket) {
+      this.suportSocket.disconnect();
+      this.suportSocket = null;
+    }
+
+    const gid = await et.getGID();
+    const eid = await et.getEID();
+    const mspId = this.supportMsp.id;
+
+    const region = this.supportMsp.region;
+    const socketPath = region ? `/${region}/socket.io` : '/socket.io'
+    this.suportSocket = io(server, {
+      path: socketPath,
+      transports: ['websocket']
+    });
+    if (!this.suportSocket) {
+      throw new Error("failed to init socket io");
+    }
+
+    this.suportSocket.on('connect', () => {
+      log.forceInfo(`Socket IO connection to ${server}, ${region} is connected.`);
+      this.suportSocket.emit("box_registration", {
+        gid: gid,
+        eid: eid,
+        mspId: mspId
+      });
+    });
+
+    this.suportSocket.on('disconnect', (reason) => {
+      log.forceInfo(`Socket IO connection to ${server}, ${region} is disconnected. reason:`, reason);
+    });
+
+    const key = `send_to_box_${gid}`;
+    this.suportSocket.on(key, (message) => {
+      if (message.gid === gid) {
+        this.onMessage({ gid, message, socket: this.suportSocket, mspId: mspId }).catch((err) => {
+          log.error(`Failed to process message from group ${gid}`, err);
+        });
+      }
+    })
   }
 }
 
