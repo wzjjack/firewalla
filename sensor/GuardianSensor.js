@@ -45,6 +45,9 @@ const zlib = require('zlib');
 const deflateAsync = Promise.promisify(zlib.deflate);
 const rp = require('request-promise');
 
+const supportMspStatausKey = "ext.guardian.supportStatus"
+const sem = require('./SensorEventManager.js').getInstance();
+
 class GuardianSensor extends Sensor {
   constructor() {
     super();
@@ -106,6 +109,18 @@ class GuardianSensor extends Sensor {
 
       forceRestart && await this.start();
     });
+
+    extensionManager.onCmd("joinSupportMsp", () => {
+      return this.joinSupportMsp();
+    })
+
+    extensionManager.onCmd("leaveSupportMsp", () => {
+      return this.leaveSupportMsp();
+    })
+
+    sem.on("RemoteSupportStopped", async () => {
+      await this.leaveSupportMsp();
+    })
 
     const adminStatusOn = await this.isAdminStatusOn();
     if (adminStatusOn) {
@@ -434,9 +449,22 @@ class GuardianSensor extends Sensor {
     }
   }
 
+  async joinSupportMsp() {
+    await rclient.setAsync(supportMspStatausKey, "1");
+    await this.connect2SupportMsp();
+  }
+
+  async leaveSupportMsp() {
+    await rclient.setAsync(supportMspStatausKey, "0");
+    if (this.suportSocket) {
+      this.suportSocket.disconnect();
+      this.suportSocket = null;
+    }
+  }
 
   async isSupportStatusOn() {
-    return true; // default on for debug purpose
+    const status = rclient.getAsync(supportMspStatausKey);
+    return status == "1";
   }
 
   async connect2SupportMsp() {
