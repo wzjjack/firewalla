@@ -160,6 +160,7 @@ class GuardianSensor extends Sensor {
     const result = [];
     await Promise.all(Object.keys(this.guardianMap).map(async (alias) => {
       const guarndian = await this.getGuardianByAlias(alias);
+      log.info("jack test guarndian", guarndian, guarndian.getGuardianInfo)
       const info = await guarndian.getGuardianInfo();
       info && result.push(info);
     }))
