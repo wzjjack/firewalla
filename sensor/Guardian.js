@@ -175,15 +175,12 @@ module.exports = class {
   }
 
   async setAndStartGuardianService(data) {
-    if (await this.locked(data.id, data.force)) {
-      throw new Error("Box had been locked");
-    }
     const socketioServer = data.server;
     if (!socketioServer) {
       throw new Error("invalid guardian relay server");
     }
     const forceRestart = !this.socket || (await this.getRegion() != data.region) || (await this.getServer() != socketioServer)
-    await this.setServer(socketioServer, data.region);
+    await this.setServer(data);
 
     forceRestart && await this.start();
   }
