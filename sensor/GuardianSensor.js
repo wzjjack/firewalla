@@ -153,6 +153,7 @@ class GuardianSensor extends Sensor {
 
   async setAndStartGuardianService(data) {
     const guardian = this.getGuardianByAlias(data.alias);
+    log.info("jack test setAndStartGuardianService", guardian);
     return guardian.setAndStartGuardianService();
   }
 
