@@ -142,17 +142,17 @@ class GuardianSensor extends Sensor {
   }
 
   async stop(data = {}) {
-    const guardian = this.getGuardianByAlias(data.alias);
+    const guardian = await this.getGuardianByAlias(data.alias);
     return guardian.stop();
   }
 
   async reset(data = {}) {
-    const guardian = this.getGuardianByAlias(data.alias);
+    const guardian = await this.getGuardianByAlias(data.alias);
     return guardian.reset();
   }
 
   async setAndStartGuardianService(data) {
-    const guardian = this.getGuardianByAlias(data.alias);
+    const guardian = await this.getGuardianByAlias(data.alias);
     log.info("jack test setAndStartGuardianService", guardian);
     return guardian.setAndStartGuardianService();
   }
@@ -160,7 +160,7 @@ class GuardianSensor extends Sensor {
   async getGuardians() {
     const result = [];
     await Promise.all(Object.keys(this.guardianMap).map(async (alias) => {
-      const guarndian = this.getGuardianByAlias(alias);
+      const guarndian = await this.getGuardianByAlias(alias);
       const info = await guarndian.getGuardianInfo();
       info && result.push(info);
     }))
@@ -168,7 +168,7 @@ class GuardianSensor extends Sensor {
   }
 
   async getGuardian(data) {
-    const guardian = this.getGuardianByAlias(data.alias);
+    const guardian = await this.getGuardianByAlias(data.alias);
     return guardian.getGuardianInfo();
   }
 }
