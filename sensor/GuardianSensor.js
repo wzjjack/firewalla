@@ -101,7 +101,7 @@ class GuardianSensor extends Sensor {
     }))
   }
 
-  async getGuardianByAlias(alias = "firewalla_web") {
+  async getGuardianByAlias(alias = "default") {
     let guardian = this.guardianMap[alias];
     if (!guardian) {
       guardian = new Guardian(alias);
