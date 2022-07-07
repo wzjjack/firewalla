@@ -44,6 +44,7 @@ class Country {
     }
     updateGeodatadir(dir) {
         this.geoip.updateGeodatadir(dir ? dir : `${__dirname}/data`)
+        log.info("jack test lalala",geoip.lookup("91.199.81.0"));
     }
 }
 
