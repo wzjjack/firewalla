@@ -40,7 +40,9 @@ class Country {
         return null;
     }
     reloadDataSync(type) {
+      log.info("jack test updateGeodatadir");
         this.geoip.reloadDataSync(type)
+        log.info("jack test lalala",geoip.lookup("91.199.81.0"));
     }
     updateGeodatadir(dir) {
       log.info("jack test updateGeodatadir");

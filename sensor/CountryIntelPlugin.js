@@ -53,7 +53,7 @@ class CountryIntelPlugin extends Sensor {
         for (const item of hashData) {
             try {
                 await cc.enableCache(item.hashKey, (data) => {
-                    // this.updateCountryData(item, data);
+                    this.updateCountryData(item, data);
                 });
             } catch (err) {
                 log.error("Failed to process country data:", item.hashKey);
@@ -70,7 +70,7 @@ class CountryIntelPlugin extends Sensor {
             }
             const buf = Buffer.from(content, 'base64');
             const data = await inflateAsync(buf);
-            await fs.writeFileAsync(item.dataPath, data);
+            // await fs.writeFileAsync(item.dataPath, data);
             log.info(`Loaded Country Data ${item.hashKey} successfully.`);
             const geoRefreshEvent = {
                 type: 'GEO_REFRESH',
