@@ -43,7 +43,8 @@ class Country {
         this.geoip.reloadDataSync(type)
     }
     updateGeodatadir(dir) {
-        this.geoip.updateGeodatadir(dir ? dir : `${__dirname}/data`)
+      log.info("jack test updateGeodatadir");
+        this.geoip.updateGeodatadir(dir ? dir : `${__dirname}/data`);
         log.info("jack test lalala",geoip.lookup("91.199.81.0"));
     }
 }

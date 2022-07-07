@@ -42,6 +42,7 @@ class CountryIntelPlugin extends Sensor {
         this.hookFeature(featureName);
     }
     async globalOn() {
+        log.info("CountryIntelPlugin global on");
         const geoDatChangeEvent = {
             type: 'GEO_DAT_CHANGE',
             dir: countryDataFolder,
