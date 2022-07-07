@@ -17,6 +17,7 @@
 global.geodatadir = `${__dirname}/data`;
 const geoip = require('../../vendor_lib/geoip-lite/geoip');
 const sem = require('../../sensor/SensorEventManager.js').getInstance();
+const log = require('../../net2/logger.js')(__filename);
 let instance = null;
 class Country {
     constructor() {
