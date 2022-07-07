@@ -52,7 +52,7 @@ class CountryIntelPlugin extends Sensor {
         for (const item of hashData) {
             try {
                 await cc.enableCache(item.hashKey, (data) => {
-                    this.updateCountryData(item, data);
+                    // this.updateCountryData(item, data);
                 });
             } catch (err) {
                 log.error("Failed to process country data:", item.hashKey);
