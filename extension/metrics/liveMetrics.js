@@ -31,12 +31,15 @@ const hostManager = new HostManager();
 
 const sysManager = require('../../net2/SysManager.js');
 
+const uuid = require('uuid');
+
 let instance = null;
 
-class LiveModeMetrics {
+class LiveMetrics {
   constructor() {
     if (instance === null) {
       instance = this;
+      this.streamingId = uuid.v4();
     }
     return instance;
   }
@@ -66,7 +69,8 @@ class LiveModeMetrics {
 
     // wan throughput
     const intfStats = (await extensionManager.get("liveStats", null, {
-      type: "system"
+      type: "system",
+      streaming: { id: this.streamingId }
     })).throughput;
     const activeWans = NetworkProfileManager.getActiveWans().map(intf => intf.uuid);
     const wanStats = intfStats.filter(x => activeWans.includes(x.target))
@@ -113,4 +117,4 @@ class LiveModeMetrics {
   }
 }
 
-module.exports = new LiveModeMetrics();
+module.exports = new LiveMetrics();
