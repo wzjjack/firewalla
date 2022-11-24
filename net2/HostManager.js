@@ -357,7 +357,8 @@ module.exports = class HostManager {
       load1: sysInfo.load1,
       load5: sysInfo.load5,
       load15: sysInfo.load15,
-      diskInfo: sysInfo.diskInfo
+      diskInfo: sysInfo.diskInfo,
+      cpuCount: sysInfo.cpuCount
     }
   }
 

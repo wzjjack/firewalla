@@ -83,6 +83,8 @@ let diskUsage = {};
 
 let releaseInfo = {};
 
+const cpuCount = os.cpuCount();
+
 getMultiProfileSupportFlag();
 
 async function update() {
@@ -353,6 +355,7 @@ async function getActiveContainers() {
 function getSysInfo() {
   let sysinfo = {
     cpu: cpuUsage,
+    cpuCount: cpuCount,
     cpuModel: cpuModel,
     mem: 1 - os.freememPercentage(),
     realMem: realMemUsage,
@@ -372,7 +375,9 @@ function getSysInfo() {
     threadInfo: threadInfo,
     intelQueueSize: intelQueueSize,
     nodeVersion: process.version,
-    diskInfo: diskInfo,
+    diskInfo: diskInfo || [],
+    usedMem: usedMem,
+    allMem: allMem,
     //categoryStats: getCategoryStats(),
     multiProfileSupport: multiProfileSupport,
     no_auto_upgrade: no_auto_upgrade,

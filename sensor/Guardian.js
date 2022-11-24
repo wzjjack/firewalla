@@ -49,6 +49,8 @@ module.exports = class {
     this.configRegionKey = `ext.guardian.socketio.region${suffix}`;
     this.configBizModeKey = `ext.guardian.business${suffix}`;
     this.configAdminStatusKey = `ext.guardian.socketio.adminStatus${suffix}`;
+    this.fastModeExpire = 5 * 60; // 5 mins
+    this.slowModeExpire = 60 * 60 // 30 mins
   }
 
   getKeySuffix(name) {
@@ -239,29 +241,19 @@ module.exports = class {
     const key = `send_to_box_${gid}`;
     this.socket.on(key, (message) => {
       if (message.gid === gid) {
-        this.onMessage(gid, message).catch((err) => {
-          log.error(`Failed to process message from group ${gid}`, err, this.name);
-        });
+        if (message.from == "msp_live_mode") {
+          this.onRealTimeEvent(message);
+        } else {
+          this.onMessage(gid, message).catch((err) => {
+            log.error(`Failed to process message from group ${gid}`, err, this.name);
+          });
+        }
       }
     })
 
     const liveKey = `realtime_send_to_box_${gid}`;
     this.socket.on(liveKey, (message) => {
-      if (message.gid === gid) {
-        switch (message.action) {
-          case "keepalive":
-            this.setRealtimeExpirationDate();
-            break;
-          case "close":
-            this.resetRealtimeExpirationDate();
-            break;
-          default:
-            this.setRealtimeExpirationDate();
-            this.onRealTimeMessage(gid, message).catch((err) => {
-              log.error(`Failed to process message from group ${gid}`, err, this.name);
-            });
-        }
-      }
+      this.onRealTimeEvent(message);
     })
   }
 
@@ -316,12 +308,46 @@ module.exports = class {
     return this.realtimeExpireDate && new Date() / 1000 < this.realtimeExpireDate;
   }
 
-  setRealtimeExpirationDate() {
-    this.realtimeExpireDate = Math.floor(new Date() / 1000) + 300; // extend for 5 mins
+  setRealtimeExpirationDate(from) {
+    const now = Date.now() / 1000;
+    let extendTiem = 5 * 60;
+    if (from == "msp_live_mode") {
+      extendTiem = this.fastModeExpire + this.slowModeExpire;
+    }
+    this.realtimeExpireDate = Math.floor(now) + extendTiem; // extend expire date
+    this.realtimeRecordDate = now;
   }
 
   resetRealtimeExpirationDate() {
     this.realtimeExpireDate = 0;
+  }
+
+  async onRealTimeEvent(message) {
+    if (message.gid === gid) {
+      switch (message.action) {
+        case "keepalive":
+          this.setRealtimeExpirationDate(message.from);
+          break;
+        case "close":
+          this.resetRealtimeExpirationDate();
+          break;
+        default:
+          this.setRealtimeExpirationDate(message.from);
+          this.onRealTimeMessage(gid, message).catch((err) => {
+            log.error(`Failed to process message from group ${gid}`, err, this.name);
+          });
+      }
+    }
+  }
+
+  getDelay(from) {
+    if (from == "msp_live_mode") {
+      const now = Date.now() / 1000;
+      // if still under fast mode time range, send message back every second
+      // otherwise 1 min
+      return now - this.realtimeRecordDate < fastModeExpire ? 1000 : 60 * 1000;
+    }
+    return 500;
   }
 
   async onRealTimeMessage(gid, message) {
@@ -332,6 +358,13 @@ module.exports = class {
     const controller = await cw.getNetBotController(gid);
     const mspId = await this.getMspId();
     this.realtimeRunning = true;
+    const from = message.from;
+    let sendBackEvent = "realtime_send_from_box";
+    if (from == "msp_live_mode") {
+      fastModeExpire = fastModeExpire || message.fastModeExpire;
+      slowModeExpire = slowModeExpire || message.slowModeExpire;
+      sendBackEvent = "send_from_box";
+    }
 
     if (controller && this.socket) {
       const encryptedMessage = message.message;
@@ -352,6 +385,7 @@ module.exports = class {
       decryptedMessage.message.suppressLog = true; // reduce sse message
 
       while (this.isRealtimeValid()) {
+        const delayTime = this.getDelay(from);
         try {
           const response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
 
@@ -368,7 +402,7 @@ module.exports = class {
 
           try {
             if (this.socket) {
-              this.socket.emit("realtime_send_from_box", {
+              this.socket.emit(sendBackEvent, {
                 message: encryptedResponse,
                 gid: gid,
                 mspId: mspId
@@ -379,10 +413,10 @@ module.exports = class {
             log.error('Socket IO connection error', err);
           }
 
-          await delay(500); // self protection
+          await delay(delayTime); // self protection
         } catch (err) {
           log.error("Got error when handling request, err:", err);
-          await delay(500); // self protection
+          await delay(delayTime); // self protection
           break;
         }
       }
