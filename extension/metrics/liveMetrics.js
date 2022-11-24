@@ -68,10 +68,14 @@ class LiveMetrics {
     metrics.publicIp = sysManager.publicIp;
 
     // wan throughput
-    const intfStats = (await extensionManager.get("liveStats", null, {
+    const xxx = await extensionManager.get("liveStats", null, {
       type: "system",
+      throughput: true,
       streaming: { id: this.streamingId }
-    })).throughput;
+    });
+
+    log.info("xxxxx", xxx);
+    const intfStats = xxx.throughput;
     const activeWans = NetworkProfileManager.getActiveWans().map(intf => intf.uuid);
     const wanStats = intfStats.filter(x => activeWans.includes(x.target))
     let rx = 0, tx = 0;
