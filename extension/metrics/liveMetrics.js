@@ -77,6 +77,8 @@ class LiveMetrics {
       streaming: { id: this.streamingId }
     })).throughput;
     const activeWans = NetworkProfileManager.getActiveWans().map(intf => intf.uuid);
+    log.info("intfStats", intfStats);
+    log.info("activeWans", activeWans);
     const wanStats = intfStats.filter(x => activeWans.includes(x.target))
     log.info("wanStats", wanStats);
     let rx = 0, tx = 0;
