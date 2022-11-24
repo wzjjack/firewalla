@@ -54,18 +54,18 @@ class LiveMetrics {
     const extensionManager = require('../../sensor/ExtensionManager');
 
     // number of rules
-    const policyRules = await pm2.loadActivePoliciesAsync({ includingDisabled: 1 });
-    metrics.rules = policyRules.filter(p => p.action == "block" || p.action == "block").length;
+    // const policyRules = await pm2.loadActivePoliciesAsync({ includingDisabled: 1 });
+    // metrics.rules = policyRules.filter(p => p.action == "block" || p.action == "block").length;
 
     // number of alarms
-    metrics.alarms = await alarmManager2.getActiveAlarmCount();
+    // metrics.alarms = await alarmManager2.getActiveAlarmCount();
 
     // number of devices
-    const json = {};
-    await Promise.all([hostManager.identitiesForInit(json), hostManager.hostsInfoForInit(json)]);
-    let count = json.hosts.length;
-    if (json.wgPeers) count += json.wgPeers.length
-    metrics.devices = count;
+    // const json = {};
+    // await Promise.all([hostManager.identitiesForInit(json), hostManager.hostsInfoForInit(json)]);
+    // let count = json.hosts.length;
+    // if (json.wgPeers) count += json.wgPeers.length
+    // metrics.devices = count;
 
     // public IP
     metrics.publicIp = sysManager.publicIp;
