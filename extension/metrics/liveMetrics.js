@@ -1,4 +1,4 @@
-/*    Copyright 2021 Firewalla INC
+/*    Copyright 2022 Firewalla INC
  *
  *    This program is free software: you can redistribute it and/or  modify
  *    it under the terms of the GNU Affero General Public License, version 3,
@@ -15,14 +15,10 @@
 
 'use strict';
 
-const rclient = require('../../util/redis_manager.js').getRedisClient();
 const log = require('../../net2/logger.js')(__filename);
 
 const NetworkProfileManager = require('../../net2/NetworkProfileManager');
 const SysInfo = require('../sysinfo/SysInfo.js');
-
-const HostManager = require('../../net2/HostManager.js');
-const hostManager = new HostManager();
 
 const PolicyManager2 = require('../../alarm/PolicyManager2.js');
 const pm2 = new PolicyManager2();
