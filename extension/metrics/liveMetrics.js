@@ -15,6 +15,7 @@
 
 'use strict';
 
+const rclient = require('../../util/redis_manager.js').getRedisClient()
 const log = require('../../net2/logger.js')(__filename);
 
 const NetworkProfileManager = require('../../net2/NetworkProfileManager');
@@ -30,8 +31,10 @@ const HostManager = require('../../net2/HostManager.js');
 const hostManager = new HostManager();
 
 const sysManager = require('../../net2/SysManager.js');
-
+const Constants = require('../../net2/Constants.js');
 const uuid = require('uuid');
+
+const _ = require('lodash');
 
 let instance = null;
 
@@ -68,16 +71,14 @@ class LiveMetrics {
     metrics.publicIp = sysManager.publicIp;
 
     // wan throughput
-    const xxx = await extensionManager.get("liveStats", null, {
+    const intfStats = (await extensionManager.get("liveStats", null, {
       type: "system",
       queries: { throughput: true },
       streaming: { id: this.streamingId }
-    });
-
-    log.info("xxxxx", xxx);
-    const intfStats = xxx.throughput;
+    })).throughput;
     const activeWans = NetworkProfileManager.getActiveWans().map(intf => intf.uuid);
     const wanStats = intfStats.filter(x => activeWans.includes(x.target))
+    log.info("wanStats", wanStats);
     let rx = 0, tx = 0;
     wanStats.forEach(w => { rx += w.rx; tx += w.tx });
     metrics.throughput = {
@@ -90,25 +91,19 @@ class LiveMetrics {
     const sysInfo = SysInfo.getSysInfo();
 
     // disk usage
-    metrics.diskUsage = sysInfo.diskInfo.map(d => {
-      return { total: d.size, used: d.used, mount: d.mount }
-    })
+    const homeMount = sysInfo.diskInfo.filter(d => d.mount == "/home");
+    metrics.diskUsage = homeMount ? (homeMount.used / homeMount.size).toFixed(4) : null;
 
     // os uptime
     metrics.osUptime = sysInfo.osUptime;
 
-    // load
-    metrics.load = {
-      load1: sysInfo.load1,
-      load5: sysInfo.load5,
-      load15: sysInfo.load15
-    }
+    // cpu usage
+    const cpuUsageRecords = await rclient.zrangebyscoreAsync(Constants.REDIS_KEY_CPU_USAGE, Date.now() / 1000 - 60, Date.now() / 1000).map(r => JSON.parse(r));
+    const sum = _.sumBy(cpuUsageRecords, (o) => 100 - o.idle);
+    metrics.cpuUsage = (sum / cpuUsageRecords.length / 1000).toFixed(4);
 
     // memory usage
-    metrics.memUsage = {
-      total: sysInfo.allMem,
-      used: sysInfo.usedMem
-    }
+    metrics.memUsage = sysInfo.realMem.toFixed(4);
 
     // flows 
     const flowStats = await hostManager.getStats({ granularities: '1hour', hits: 24 }, "0.0.0.0", ['conn', 'ipB', 'dns', 'dnsB']);

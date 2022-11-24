@@ -83,7 +83,6 @@ let diskUsage = {};
 
 let releaseInfo = {};
 
-const cpuCount = os.cpuCount();
 
 getMultiProfileSupportFlag();
 
@@ -355,7 +354,6 @@ async function getActiveContainers() {
 function getSysInfo() {
   let sysinfo = {
     cpu: cpuUsage,
-    cpuCount: cpuCount,
     cpuModel: cpuModel,
     mem: 1 - os.freememPercentage(),
     realMem: realMemUsage,
