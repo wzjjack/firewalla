@@ -92,6 +92,7 @@ class LiveMetrics {
 
     // disk usage
     const homeMount = sysInfo.diskInfo.filter(d => d.mount == "/home");
+    log.info("homeMount", homeMount);
     metrics.diskUsage = homeMount ? (homeMount.used / homeMount.size).toFixed(4) : null;
 
     // os uptime
@@ -99,8 +100,11 @@ class LiveMetrics {
 
     // cpu usage
     const cpuUsageRecords = await rclient.zrangebyscoreAsync(Constants.REDIS_KEY_CPU_USAGE, Date.now() / 1000 - 60, Date.now() / 1000).map(r => JSON.parse(r));
-    const sum = _.sumBy(cpuUsageRecords, (o) => 100 - o.idle);
-    metrics.cpuUsage = (sum / cpuUsageRecords.length / 1000).toFixed(4);
+    if (cpuUsageRecords.length > 0) {
+      const sum = _.sumBy(cpuUsageRecords, (o) => 100 - o.idle);
+      metrics.cpuUsage = (sum / cpuUsageRecords.length / 1000).toFixed(4);
+    }
+
 
     // memory usage
     metrics.memUsage = sysInfo.realMem.toFixed(4);
