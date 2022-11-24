@@ -70,7 +70,7 @@ class LiveMetrics {
     // wan throughput
     const xxx = await extensionManager.get("liveStats", null, {
       type: "system",
-      throughput: true,
+      queries: { throughput: true },
       streaming: { id: this.streamingId }
     });
 
