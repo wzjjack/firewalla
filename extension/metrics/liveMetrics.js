@@ -91,7 +91,7 @@ class LiveMetrics {
     const sysInfo = SysInfo.getSysInfo();
 
     // disk usage
-    const homeMount = sysInfo.diskInfo.filter(d => d.mount == "/home");
+    const homeMount = _.find(sysInfo.diskInfo, { mount: "/home" })
     log.info("homeMount", homeMount);
     metrics.diskUsage = homeMount ? (homeMount.used / homeMount.size).toFixed(4) : null;
 
