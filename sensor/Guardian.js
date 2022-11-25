@@ -310,7 +310,7 @@ module.exports = class {
   setRealtimeExpirationDate(from) {
     const now = Date.now() / 1000;
     let extendTiem = 5 * 60;
-    if (from == "msp_live_mode") {
+    if (from == "liveMetrics") {
       extendTiem = this.fastModeExpire + this.slowModeExpire;
     }
     this.realtimeExpireDate = Math.floor(now) + extendTiem; // extend expire date
@@ -322,6 +322,8 @@ module.exports = class {
   }
 
   async onRealTimeEvent(message) {
+    log.info("this.fastModeExpire", this.fastModeExpire);
+    log.info("this.slowModeExpire", this.slowModeExpire);
     const gid = message.gid;
     switch (message.action) {
       case "keepalive":
@@ -339,7 +341,7 @@ module.exports = class {
   }
 
   getDelay(from) {
-    if (from == "msp_live_mode") {
+    if (from == "liveMetrics") {
       const now = Date.now() / 1000;
       // if still under fast mode time range, send message back every 2 second
       // otherwise 1 min
@@ -358,7 +360,7 @@ module.exports = class {
     this.realtimeRunning = true;
     const from = message.from;
     let sendBackEvent = "realtime_send_from_box";
-    if (from == "msp_live_mode") {
+    if (from == "liveMetrics") {
       sendBackEvent = "send_from_box";
     }
     if (controller && this.socket) {
@@ -393,7 +395,6 @@ module.exports = class {
           });
 
           const encryptedResponse = await encryptMessageAsync(gid, compressedResponse);
-          log.info("jack test", encryptedResponse.length);
           try {
             if (this.socket) {
               this.socket.emit(sendBackEvent, {
@@ -434,7 +435,7 @@ module.exports = class {
           const value = obj.data.value || {};
           this.fastModeExpire = value.fastModeExpire || this.fastModeExpire;
           this.slowModeExpire = _.isNumber(value.slowModeExpire) ? value.slowModeExpire : this.slowModeExpire; // slow mode can be 0
-          return this.onRealTimeEvent(Object.assign(message, { from: "msp_live_mode" }));
+          return this.onRealTimeEvent(Object.assign(message, { from: "liveMetrics" }));
         }
         response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
         const input = Buffer.from(JSON.stringify(response), 'utf8');
