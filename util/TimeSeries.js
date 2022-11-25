@@ -14,22 +14,47 @@
  */
 'use strict';
 const TimeSeries = require('redis-timeseries')
+const log = require('../net2/logger.js')(__filename, 'info');
+const rclient = require('../util/redis_manager.js').getMetricsRedisClient();
+const sclient = require('../util/redis_manager.js').getSubscriptionClient();
+const Message = require('../net2/Message.js');
 
-const rclient = require('../util/redis_manager.js').getMetricsRedisClient()
+const sysManager = require('../net2/SysManager.js');
+
+let timezone = sysManager.getTimezone();
+
+sclient.on("message", async (channel, message) => {
+  if (channel === Message.MSG_SYS_TIMEZONE_RELOADED) {
+    log.info(`System timezone is reloaded, update timezone`);
+    timezone = message;
+  }
+});
+sclient.subscribe(Message.MSG_SYS_TIMEZONE_RELOADED);
+
+const moment = require('moment-timezone');
 
 // Get current timestamp in seconds
-var getCurrentTime = function() {
+var getCurrentTime = function () {
   return Math.floor(Date.now() / 1000);
 };
 
 // Round timestamp to the 'precision' interval (in seconds)
 var getRoundedTime = function (precision, time, hit) {
   time = time || getCurrentTime();
-  const offset = new Date().getTimezoneOffset() * 60; // in seconds
-  if (hit && Math.abs(offset) < precision) {
-    time = time - offset;
+  let ts = Math.floor(time / precision) * precision;
+  if (!hit) return ts;
+  const timeDate = moment(ts * 1000).tz(timezone).get('date');
+  const tsDate = moment(time * 1000).tz(timezone).get('date');
+  const oneDay = 24 * 60 * 60;
+  if (timeDate == tsDate) { // same day
+    return ts;
+  } else { // not same day
+    if (ts > time) { // reduce one day of ts
+      ts = ts - oneDay;
+    } else {
+      ts = ts + oneDay;
+    }
   }
-  return Math.floor(time / precision) * precision;
 };
 
 // override getHits function
