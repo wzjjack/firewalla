@@ -429,6 +429,7 @@ module.exports = class {
       let response, decryptedMessage, code = 200, encryptedResponse;
       try {
         decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
+        log.info("jack test", decryptedMessage);
         decryptedMessage.mtype = decryptedMessage.message.mtype;
         if (decryptedMessage.message && decryptedMessage.message.data && decryptedMessage.message.data.item == "liveMetrics") {
           const value = decryptedMessage.message.data.value || {};
