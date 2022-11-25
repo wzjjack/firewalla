@@ -19,10 +19,7 @@ const rclient = require('../util/redis_manager.js').getMetricsRedisClient();
 const sclient = require('../util/redis_manager.js').getSubscriptionClient();
 const Message = require('../net2/Message.js');
 
-const sysManager = require('../net2/SysManager.js');
-
-let timezone = sysManager.getTimezone();
-log.info("default timezone", timezone)
+let timezone;
 
 sclient.on("message", async (channel, message) => {
   if (channel === Message.MSG_SYS_TIMEZONE_RELOADED) {
@@ -44,10 +41,17 @@ var getRoundedTime = function (precision, time, hit) {
   time = time || getCurrentTime();
   let ts = Math.floor(time / precision) * precision;
   // if (!hit) return ts;
-  const timeDate = moment(ts * 1000).tz(timezone).get('date');
-  const tsDate = moment(time * 1000).tz(timezone).get('date');
-  log.info("timeDate of", ts, timeDate);
-  log.info("tsDate of", ts, tsDate);
+  let timeDate, tsDate;
+  if (timezone) {
+    timeDate = moment(time * 1000).get('date');
+    tsDate = moment(ts * 1000).get('date');
+  } else {
+    timeDate = moment(time * 1000).tz(timezone).get('date');
+    tsDate = moment(ts * 1000).tz(timezone).get('date');
+  }
+  log.info("jack test time", time);
+  log.info("timeDate of", timeDate);
+  log.info("tsDate of", tsDate);
   const oneDay = 24 * 60 * 60;
   if (timeDate == tsDate) { // same day
     return ts;
@@ -114,6 +118,8 @@ TimeSeries.prototype.getHits = function (key, gran, count, callback) {
   if (typeof properties === "undefined") {
     return callback(new Error("Unsupported granularity: " + gran));
   }
+
+  log.info("jack test", currentTime);
 
   if (count > properties.ttl / properties.duration) {
     return callback(new Error("Count: " + count + " exceeds the maximum stored slots for granularity: " + gran));
