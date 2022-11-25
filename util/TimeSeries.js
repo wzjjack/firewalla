@@ -40,7 +40,7 @@ var getCurrentTime = function () {
 var getRoundedTime = function (precision, time, hit) {
   time = time || getCurrentTime();
   let ts = Math.floor(time / precision) * precision;
-  if (!hit) return ts;
+  // if (!hit) return ts;
   let timeDate, tsDate;
   if (!timezone) {
     timeDate = moment(time * 1000).get('date');
@@ -61,6 +61,7 @@ var getRoundedTime = function (precision, time, hit) {
     } else {
       ts = ts + oneDay;
     }
+    return ts;
   }
 };
 
