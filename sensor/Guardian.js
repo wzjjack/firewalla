@@ -439,6 +439,7 @@ module.exports = class {
             replyid: replyid,
             socket: this.socket
           }));
+          if (value.close) return liveTransport.resetRealtimeExpirationDate();
           return liveTransport.onLiveTimeMessage();
         }
         response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');

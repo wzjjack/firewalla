@@ -73,6 +73,7 @@ class LiveTransport {
 
   async onLiveTimeMessage() {
     try {
+      this.setLivetimeExpirationDate();
       if (this.livetimeRunning) {
         return;
       }
