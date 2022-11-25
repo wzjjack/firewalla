@@ -20,17 +20,8 @@ const log = require('../../net2/logger.js')(__filename);
 
 const NetworkProfileManager = require('../../net2/NetworkProfileManager');
 const SysInfo = require('../sysinfo/SysInfo.js');
-
-const PolicyManager2 = require('../../alarm/PolicyManager2.js');
-const pm2 = new PolicyManager2();
-
-const AlarmManager2 = require('../../alarm/AlarmManager2.js');
-const alarmManager2 = new AlarmManager2();
-
 const HostManager = require('../../net2/HostManager.js');
 const hostManager = new HostManager();
-
-const sysManager = require('../../net2/SysManager.js');
 const Constants = require('../../net2/Constants.js');
 const uuid = require('uuid');
 
@@ -83,7 +74,9 @@ class LiveMetrics {
     const cpuUsageRecords = await rclient.zrangebyscoreAsync(Constants.REDIS_KEY_CPU_USAGE, Date.now() / 1000 - 60, Date.now() / 1000).map(r => JSON.parse(r));
     if (cpuUsageRecords.length > 0) {
       const sum = _.sumBy(cpuUsageRecords, (o) => 100 - o.idle);
-      metrics.cpuUsage = parseFloat((sum / cpuUsageRecords.length / 1000).toFixed(4));
+      // 2+4+2+2 = 10， 10/4 = 2.5
+      // 2.5 means 2.5%
+      metrics.cpuUsage = parseFloat((sum / cpuUsageRecords.length / 100).toFixed(4));
     }
 
 
