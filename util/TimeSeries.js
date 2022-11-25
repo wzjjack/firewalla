@@ -42,7 +42,7 @@ var getRoundedTime = function (precision, time, hit) {
   let ts = Math.floor(time / precision) * precision;
   // if (!hit) return ts;
   let timeDate, tsDate;
-  if (timezone) {
+  if (!timezone) {
     timeDate = moment(time * 1000).get('date');
     tsDate = moment(ts * 1000).get('date');
   } else {
