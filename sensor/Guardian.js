@@ -308,11 +308,13 @@ module.exports = class {
   }
 
   setRealtimeExpirationDate(from) {
+    log.info("from", from);
     const now = Date.now() / 1000;
     let extendTiem = 5 * 60;
     if (from == "liveMetrics") {
       extendTiem = this.fastModeExpire + this.slowModeExpire;
     }
+    log.info("jack test extendTiem", extendTiem);
     this.realtimeExpireDate = Math.floor(now) + extendTiem; // extend expire date
     this.realtimeRecordDate = now;
   }
