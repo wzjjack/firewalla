@@ -53,9 +53,6 @@ class LiveMetrics {
     const metrics = {};
     const extensionManager = require('../../sensor/ExtensionManager');
 
-    // public IP
-    metrics.publicIp = sysManager.publicIp;
-
     // wan throughput
     const intfStats = (await extensionManager.get("liveStats", null, {
       type: "system",
