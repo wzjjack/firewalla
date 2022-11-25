@@ -22,10 +22,11 @@ const Message = require('../net2/Message.js');
 const sysManager = require('../net2/SysManager.js');
 
 let timezone = sysManager.getTimezone();
+log.info("default timezone", timezone)
 
 sclient.on("message", async (channel, message) => {
   if (channel === Message.MSG_SYS_TIMEZONE_RELOADED) {
-    log.info(`System timezone is reloaded, update timezone`);
+    log.info(`System timezone is reloaded, update timezone`, message);
     timezone = message;
   }
 });
@@ -42,9 +43,11 @@ var getCurrentTime = function () {
 var getRoundedTime = function (precision, time, hit) {
   time = time || getCurrentTime();
   let ts = Math.floor(time / precision) * precision;
-  if (!hit) return ts;
+  // if (!hit) return ts;
   const timeDate = moment(ts * 1000).tz(timezone).get('date');
   const tsDate = moment(time * 1000).tz(timezone).get('date');
+  log.info("timeDate of", ts, timeDate);
+  log.info("tsDate of", ts, tsDate);
   const oneDay = 24 * 60 * 60;
   if (timeDate == tsDate) { // same day
     return ts;
@@ -71,67 +74,67 @@ var getRoundedTime = function (precision, time, hit) {
  * `timestamp` should be in seconds, and defaults to current time.
  * `increment` should be an integer, and defaults to 1
  */
- TimeSeries.prototype.recordHit = function(key, timestamp, increment, callback) {
+TimeSeries.prototype.recordHit = function (key, timestamp, increment, callback) {
   var self = this;
 
-  Object.keys(this.granularities).forEach(function(gran) {
+  Object.keys(this.granularities).forEach(function (gran) {
     var properties = self.granularities[gran],
-        keyTimestamp = getRoundedTime(properties.precision || properties.ttl, timestamp), // high prority: precision
-        tmpKey = [self.keyBase, key, gran, keyTimestamp].join(':'),
+      keyTimestamp = getRoundedTime(properties.precision || properties.ttl, timestamp), // high prority: precision
+      tmpKey = [self.keyBase, key, gran, keyTimestamp].join(':'),
       hitTimestamp = getRoundedTime(properties.duration, timestamp, true);
 
-   if(self.noMulti) {
-    self.redis.hincrby(tmpKey, hitTimestamp, Math.floor(increment || 1), (err) => {
-      if(err) {
-        if(callback) {
-          callback(err)
+    if (self.noMulti) {
+      self.redis.hincrby(tmpKey, hitTimestamp, Math.floor(increment || 1), (err) => {
+        if (err) {
+          if (callback) {
+            callback(err)
+          }
+          return
         }
-        return
-      }
-      self.redis.expireat(tmpKey, keyTimestamp + 2 * properties.ttl, (err2) => {
-        if(callback) {
-          callback(err2)
-        }
+        self.redis.expireat(tmpKey, keyTimestamp + 2 * properties.ttl, (err2) => {
+          if (callback) {
+            callback(err2)
+          }
+        });
       });
-    });
-   } else {
-    self.pendingMulti.hincrby(tmpKey, hitTimestamp, Math.floor(increment || 1));
-    self.pendingMulti.expireat(tmpKey, keyTimestamp + 2 * properties.ttl);
-   }
+    } else {
+      self.pendingMulti.hincrby(tmpKey, hitTimestamp, Math.floor(increment || 1));
+      self.pendingMulti.expireat(tmpKey, keyTimestamp + 2 * properties.ttl);
+    }
   });
 
   return this;
 };
 
 // override getHits function
-TimeSeries.prototype.getHits = function(key, gran, count, callback) {
+TimeSeries.prototype.getHits = function (key, gran, count, callback) {
   var properties = this.granularities[gran],
-      currentTime = getCurrentTime();
+    currentTime = getCurrentTime();
 
   if (typeof properties === "undefined") {
-    return callback(new Error("Unsupported granularity: "+gran));
+    return callback(new Error("Unsupported granularity: " + gran));
   }
 
   if (count > properties.ttl / properties.duration) {
-    return callback(new Error("Count: "+count+" exceeds the maximum stored slots for granularity: "+gran));
+    return callback(new Error("Count: " + count + " exceeds the maximum stored slots for granularity: " + gran));
   }
 
-  var from = getRoundedTime(properties.duration, currentTime - count*properties.duration),
-      to = getRoundedTime(properties.duration, currentTime);
+  var from = getRoundedTime(properties.duration, currentTime - count * properties.duration),
+    to = getRoundedTime(properties.duration, currentTime);
 
-  for(var ts=from, multi=this.redis.multi(); ts<=to; ts+=properties.duration) {
+  for (var ts = from, multi = this.redis.multi(); ts <= to; ts += properties.duration) {
     var keyTimestamp = getRoundedTime(properties.precision || properties.ttl, ts), // high prority: precision
-        tmpKey = [this.keyBase, key, gran, keyTimestamp].join(':');
+      tmpKey = [this.keyBase, key, gran, keyTimestamp].join(':');
 
     multi.hget(tmpKey, ts);
   }
 
-  multi.exec(function(err, results) {
+  multi.exec(function (err, results) {
     if (err) {
       return callback(err);
     }
 
-    for(var ts=from, i=0, data=[]; ts<=to; ts+=properties.duration, i+=1) {
+    for (var ts = from, i = 0, data = []; ts <= to; ts += properties.duration, i += 1) {
       data.push([ts, results[i] ? parseInt(results[i], 10) : 0]);
     }
 
@@ -141,18 +144,18 @@ TimeSeries.prototype.getHits = function(key, gran, count, callback) {
 
 const timeSeries = new TimeSeries(rclient, "timedTraffic")
 timeSeries.granularities = {
-  '1minute'  : { ttl: timeSeries.minutes(65)  , duration: timeSeries.minutes(1) },
-  '15minutes': { ttl: timeSeries.hours(50)  , duration: timeSeries.minutes(15) },
-  '1hour'    : { ttl: timeSeries.days(7)   , duration: timeSeries.hours(1) },
-  '1day'     : { ttl: timeSeries.weeks(53) , duration: timeSeries.days(1), precision:timeSeries.weeks(52) },
-  '1month'   : { ttl: timeSeries.months(24) , duration: timeSeries.months(1) }
+  '1minute': { ttl: timeSeries.minutes(65), duration: timeSeries.minutes(1) },
+  '15minutes': { ttl: timeSeries.hours(50), duration: timeSeries.minutes(15) },
+  '1hour': { ttl: timeSeries.days(7), duration: timeSeries.hours(1) },
+  '1day': { ttl: timeSeries.weeks(53), duration: timeSeries.days(1), precision: timeSeries.weeks(52) },
+  '1month': { ttl: timeSeries.months(24), duration: timeSeries.months(1) }
 }
 
 const boneAPITimeSeries = new TimeSeries(rclient, "boneAPIUsage")
 boneAPITimeSeries.granularities = {
-  '1minute'  : { ttl: boneAPITimeSeries.minutes(60)  , duration: boneAPITimeSeries.minutes(1) },
-  '1hour'    : { ttl: boneAPITimeSeries.days(7)   , duration: boneAPITimeSeries.hours(1) },
-  '1day'     : { ttl: boneAPITimeSeries.days(30) , duration: boneAPITimeSeries.days(1) },
+  '1minute': { ttl: boneAPITimeSeries.minutes(60), duration: boneAPITimeSeries.minutes(1) },
+  '1hour': { ttl: boneAPITimeSeries.days(7), duration: boneAPITimeSeries.hours(1) },
+  '1day': { ttl: boneAPITimeSeries.days(30), duration: boneAPITimeSeries.days(1) },
 }
 
 // set flag
