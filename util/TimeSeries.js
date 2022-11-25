@@ -37,10 +37,10 @@ var getCurrentTime = function () {
 };
 
 // Round timestamp to the 'precision' interval (in seconds)
-var getRoundedTime = function (precision, time, hit) {
+var getRoundedTime = function (precision, time, key) {
   time = time || getCurrentTime();
   let ts = Math.floor(time / precision) * precision;
-  if (!hit) return ts;
+  if (!key) return ts;
   let timeDate, tsDate;
   if (!timezone) {
     timeDate = moment(time * 1000).get('date');
@@ -126,8 +126,8 @@ TimeSeries.prototype.getHits = function (key, gran, count, callback) {
     return callback(new Error("Count: " + count + " exceeds the maximum stored slots for granularity: " + gran));
   }
 
-  var from = getRoundedTime(properties.duration, currentTime - count * properties.duration),
-    to = getRoundedTime(properties.duration, currentTime);
+  var from = getRoundedTime(properties.duration, currentTime - count * properties.duration, true),
+    to = getRoundedTime(properties.duration, currentTime, true);
 
   for (var ts = from, multi = this.redis.multi(); ts <= to; ts += properties.duration) {
     var keyTimestamp = getRoundedTime(properties.precision || properties.ttl, ts), // high prority: precision
