@@ -429,10 +429,10 @@ module.exports = class {
       let response, decryptedMessage, code = 200, encryptedResponse;
       try {
         decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
-        log.info("jack test", decryptedMessage);
         decryptedMessage.mtype = decryptedMessage.message.mtype;
-        if (decryptedMessage.message && decryptedMessage.message.data && decryptedMessage.message.data.item == "liveMetrics") {
-          const value = decryptedMessage.message.data.value || {};
+        const obj = decryptedMessage.message.obj;
+        if (obj.data.item == "liveMetrics") {
+          const value = obj.data.value || {};
           this.fastModeExpire = value.fastModeExpire || this.fastModeExpire;
           this.slowModeExpire = _.isNumber(value.slowModeExpire) ? value.slowModeExpire : this.slowModeExpire; // slow mode can be 0
           return this.onRealTimeEvent(Object.assign(message, { from: "msp_live_mode" }));
