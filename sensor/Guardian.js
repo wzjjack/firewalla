@@ -399,7 +399,8 @@ module.exports = class {
               this.socket.emit(sendBackEvent, {
                 message: encryptedResponse,
                 gid: gid,
-                mspId: mspId
+                mspId: mspId,
+                from: from
               });
             }
             log.info("response sent back to web cloud via realtime, req id:", decryptedMessage.message.obj.id, this.name);
@@ -429,10 +430,10 @@ module.exports = class {
       try {
         decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
         decryptedMessage.mtype = decryptedMessage.message.mtype;
-        if (decryptedMessage.data && decryptedMessage.data.item == "liveMetrics") {
-          const value = decryptedMessage.data.value || {};
+        if (decryptedMessage.message && decryptedMessage.message.data && decryptedMessage.message.data.item == "liveMetrics") {
+          const value = decryptedMessage.message.data.value || {};
           this.fastModeExpire = value.fastModeExpire || this.fastModeExpire;
-          this.slowModeExpire = _.isNumber(value.slowModeExpire) ? value.slowModeExpire : this.slowModeExpire; // slow mode can be 0;
+          this.slowModeExpire = _.isNumber(value.slowModeExpire) ? value.slowModeExpire : this.slowModeExpire; // slow mode can be 0
           return this.onRealTimeEvent(Object.assign(message, { from: "msp_live_mode" }));
         }
         response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
