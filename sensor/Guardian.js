@@ -51,7 +51,7 @@ module.exports = class {
     this.configBizModeKey = `ext.guardian.business${suffix}`;
     this.configAdminStatusKey = `ext.guardian.socketio.adminStatus${suffix}`;
     this.fastModeExpire = 5 * 60; // 5 mins
-    this.slowModeExpire = 5 * 60 // 5 mins
+    this.slowModeExpire = 0; // default disabled
   }
 
   getKeySuffix(name) {
@@ -341,9 +341,9 @@ module.exports = class {
   getDelay(from) {
     if (from == "msp_live_mode") {
       const now = Date.now() / 1000;
-      // if still under fast mode time range, send message back every second
+      // if still under fast mode time range, send message back every 2 second
       // otherwise 1 min
-      return now - this.realtimeRecordDate < this.fastModeExpire ? 1000 : 60 * 1000;
+      return now - this.realtimeRecordDate < this.fastModeExpire ? 2000 : 60 * 1000;
     }
     return 500;
   }
@@ -393,7 +393,7 @@ module.exports = class {
           });
 
           const encryptedResponse = await encryptMessageAsync(gid, compressedResponse);
-
+          log.info("jack test", encryptedResponse.length);
           try {
             if (this.socket) {
               this.socket.emit(sendBackEvent, {
