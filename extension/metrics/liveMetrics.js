@@ -77,8 +77,7 @@ class LiveMetrics {
 
     // disk usage
     const homeMount = _.find(sysInfo.diskInfo, { mount: "/home" })
-    log.info("homeMount", homeMount);
-    metrics.diskUsage = homeMount ? (homeMount.used / homeMount.size).toFixed(4) : null;
+    metrics.diskUsage = homeMount ? parseFloat((homeMount.used / homeMount.size).toFixed(4)) : null;
 
     // os uptime
     metrics.osUptime = sysInfo.osUptime;
@@ -87,12 +86,12 @@ class LiveMetrics {
     const cpuUsageRecords = await rclient.zrangebyscoreAsync(Constants.REDIS_KEY_CPU_USAGE, Date.now() / 1000 - 60, Date.now() / 1000).map(r => JSON.parse(r));
     if (cpuUsageRecords.length > 0) {
       const sum = _.sumBy(cpuUsageRecords, (o) => 100 - o.idle);
-      metrics.cpuUsage = (sum / cpuUsageRecords.length / 1000).toFixed(4);
+      metrics.cpuUsage = parseFloat((sum / cpuUsageRecords.length / 1000).toFixed(4));
     }
 
 
     // memory usage
-    metrics.memUsage = sysInfo.realMem.toFixed(4);
+    metrics.memUsage = parseFloat(sysInfo.realMem.toFixed(4));
 
     // flows 
     const flowStats = await hostManager.getStats({ granularities: '1hour', hits: 24 }, "0.0.0.0", ['conn', 'ipB', 'dns', 'dnsB']);
