@@ -97,10 +97,10 @@ class LiveTransport {
             } catch (err) {
               log.error('Socket IO connection error', err);
             }
-            await delay(this.delay);
+            await delay(this.delay * 1000);
           } catch (err) {
             log.error("Got error when handling request, err:", err);
-            await delay(this.delay);
+            await delay(this.delay * 1000);
             break;
           }
         }
