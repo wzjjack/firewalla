@@ -375,7 +375,7 @@ module.exports = class {
       }
       const decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
       decryptedMessage.mtype = decryptedMessage.message.mtype;
-      decryptedMessage.obj.data.value.streaming = { id: decryptedMessage.message.obj.id };
+      decryptedMessage.message.obj.data.value.streaming = { id: decryptedMessage.message.obj.id };
       decryptedMessage.message.suppressLog = true; // reduce sse message
 
       while (this.isRealtimeValid()) {
