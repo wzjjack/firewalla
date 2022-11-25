@@ -53,20 +53,6 @@ class LiveMetrics {
     const metrics = {};
     const extensionManager = require('../../sensor/ExtensionManager');
 
-    // number of rules
-    // const policyRules = await pm2.loadActivePoliciesAsync({ includingDisabled: 1 });
-    // metrics.rules = policyRules.filter(p => p.action == "block" || p.action == "block").length;
-
-    // number of alarms
-    // metrics.alarms = await alarmManager2.getActiveAlarmCount();
-
-    // number of devices
-    // const json = {};
-    // await Promise.all([hostManager.identitiesForInit(json), hostManager.hostsInfoForInit(json)]);
-    // let count = json.hosts.length;
-    // if (json.wgPeers) count += json.wgPeers.length
-    // metrics.devices = count;
-
     // public IP
     metrics.publicIp = sysManager.publicIp;
 
@@ -77,10 +63,7 @@ class LiveMetrics {
       streaming: { id: this.streamingId }
     })).throughput;
     const activeWans = NetworkProfileManager.getActiveWans().map(intf => intf.uuid);
-    log.info("intfStats", intfStats);
-    log.info("activeWans", activeWans);
     const wanStats = intfStats.filter(x => activeWans.includes(x.target))
-    log.info("wanStats", wanStats);
     let rx = 0, tx = 0;
     wanStats.forEach(w => { rx += w.rx; tx += w.tx });
     metrics.throughput = {
