@@ -70,7 +70,6 @@ module.exports = class {
   registerLiveTransport(options) {
     const item = options.item;
     if (!(item in this.liveTransportCache)) {
-      log.info("Register live transport for", item, options);
       this.liveTransportCache[item] = new LiveTransport(options);
     }
 
@@ -430,7 +429,7 @@ module.exports = class {
         const obj = decryptedMessage.message.obj;
         const item = obj.data.item;
         if (this.supportLiveTransportItems.includes(item)) { // each item can be used under live transport
-          const value = obj.data.value || {};
+          const value = JSON.parse(JSON.stringify(obj.data.value || {}));
           const liveTransport = this.registerLiveTransport(Object.assign(value, {
             item: item,
             gid: gid,

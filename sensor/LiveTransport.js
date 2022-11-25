@@ -74,7 +74,6 @@ class LiveTransport {
   async onLiveTimeMessage() {
     try {
       this.setLivetimeExpirationDate();
-      log.info("jack test this.livetimeRunning", this.livetimeRunning)
       if (this.livetimeRunning) {
         return;
       }
@@ -85,7 +84,6 @@ class LiveTransport {
       const replyid = this.replyid;
       this.livetimeRunning = true;
       if (controller && this.socket) {
-        log.info("jacktest 2", this.isLivetimeValid());
         while (this.isLivetimeValid()) {
           const delayTime = this.getDelay();
           try {
@@ -105,8 +103,7 @@ class LiveTransport {
                   message: encryptedResponse,
                   gid: gid,
                   mspId: mspId,
-                  replyid: replyid,
-                  code: code
+                  replyid: replyid
                 });
               }
               log.info("response sent to back web cloud via live transport, req id:", decryptedMessage ? decryptedMessage.message.obj.id : "decryption error", this.name);
