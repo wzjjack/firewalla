@@ -106,7 +106,7 @@ class LiveTransport {
                   replyid: replyid
                 });
               }
-              log.info("response sent to back web cloud via live transport, req id:", decryptedMessage ? decryptedMessage.message.obj.id : "decryption error", this.name);
+              log.info("response sent to back web cloud via live transport, req id:", message ? message.message.obj.id : "decryption error", this.name);
             } catch (err) {
               log.error('Socket IO connection error', err);
             }
