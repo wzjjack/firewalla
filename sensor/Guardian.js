@@ -382,7 +382,7 @@ module.exports = class {
         const delayTime = this.getDelay(from);
         try {
           const response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
-
+          response.from = from;
           const input = Buffer.from(JSON.stringify(response), 'utf8');
           const output = await deflateAsync(input);
 
@@ -399,8 +399,7 @@ module.exports = class {
               this.socket.emit(sendBackEvent, {
                 message: encryptedResponse,
                 gid: gid,
-                mspId: mspId,
-                from: from
+                mspId: mspId
               });
             }
             log.info("response sent back to web cloud via realtime, req id:", decryptedMessage.message.obj.id, this.name);
