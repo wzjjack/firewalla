@@ -35,7 +35,7 @@ class LiveTransport {
     if (instance === null) {
       instance = this;
       this.delay = options.delay || 2; // 2 seconds
-      this.expire = options.expire || 5 * 60; // 5 mins
+      this.expire = options.expire || 2 * 60; // 5 mins
       this.socket = options.socket;
       this.item = options.item;
       this.message = options.message;
