@@ -34,10 +34,10 @@ class LiveTransport {
   constructor(options) {
     if (instance === null) {
       instance = this;
-      this.fastModeDelay = 2 || options.fastModeDelay; // 2 seconds
-      this.slowModeDelay = 60 || options.slowModeDelay; // 60 seconds
-      this.fastModeExpire = 5 * 60 || options.fastModeExpire; // 5 mins
-      this.slowModeExpire = 0 || options.slowModeExpire; // default disabled
+      this.fastModeDelay = options.fastModeDelay || 2; // 2 seconds
+      this.slowModeDelay = options.slowModeDelay || 60; // 60 seconds
+      this.fastModeExpire = options.fastModeExpire || 5 * 60; // 5 mins
+      this.slowModeExpire = options.slowModeExpire || 0; // default disabled
       this.socket = options.socket;
       this.item = options.item;
       this.message = options.message;
@@ -49,14 +49,14 @@ class LiveTransport {
   }
 
   isLivetimeValid() {
-    return this.liveTimeExpireDate && new Date() / 1000 < this.liveTimeExpireDate;
+    return this.livetimeExpireDate && new Date() / 1000 < this.livetimeExpireDate;
   }
 
   setLivetimeExpirationDate() {
     const now = Date.now() / 1000;
     const extendTime = this.fastModeExpire + this.slowModeExpire;
-    this.realtimeExpireDate = Math.floor(now) + extendTime; // extend expire date
-    this.realtimeRecordDate = now;
+    this.livetimeExpireDate = Math.floor(now) + extendTime; // extend expire date
+    this.livetimeRecordDate = now;
   }
 
   resetRealtimeExpirationDate() {
@@ -67,13 +67,14 @@ class LiveTransport {
     const now = Date.now() / 1000;
     // if still under fast mode time range, send message back every 2 second
     // otherwise 1 min
-    const delay = now - this.realtimeRecordDate < this.fastModeExpire ? this.fastModeDelay : this.slowModeDelay;
+    const delay = now - this.livetimeRecordDate < this.fastModeExpire ? this.fastModeDelay : this.slowModeDelay;
     return delay * 1000 || 1000; // default 2 second for self protection
   }
 
   async onLiveTimeMessage() {
     try {
       this.setLivetimeExpirationDate();
+      log.info("jack test this.livetimeRunning", this.livetimeRunning)
       if (this.livetimeRunning) {
         return;
       }
@@ -84,6 +85,7 @@ class LiveTransport {
       const replyid = this.replyid;
       this.livetimeRunning = true;
       if (controller && this.socket) {
+        log.info("jacktest 2", this.isLivetimeValid());
         while (this.isLivetimeValid()) {
           const delayTime = this.getDelay();
           try {

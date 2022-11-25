@@ -61,7 +61,7 @@ module.exports = class {
     for (const item in this.liveTransportCache) {
       const liveTransport = this.liveTransportCache[item];
       if (!liveTransport.isLivetimeValid()) {
-        log.info("Destory live transport for ", item);
+        log.info("Destory live transport for", item);
         delete this.liveTransportCache[item];
       }
     }
@@ -70,7 +70,7 @@ module.exports = class {
   registerLiveTransport(options) {
     const item = options.item;
     if (!(item in this.liveTransportCache)) {
-      log.info("Register live transport for ", item);
+      log.info("Register live transport for", item, options);
       this.liveTransportCache[item] = new LiveTransport(options);
     }
 
