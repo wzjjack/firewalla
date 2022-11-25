@@ -39,19 +39,42 @@ const deflateAsync = Promise.promisify(zlib.deflate);
 const rp = require('request-promise');
 
 const PolicyManager2 = require('../alarm/PolicyManager2.js');
+const LiveTransport = require('./LiveTransport.js');
 const pm2 = new PolicyManager2();
-const _ = require('lodash');
 
 module.exports = class {
-  constructor(name) {
+  constructor(name, config = {}) {
     this.name = name;
     const suffix = this.getKeySuffix(name);
     this.configServerKey = `ext.guardian.socketio.server${suffix}`;
     this.configRegionKey = `ext.guardian.socketio.region${suffix}`;
     this.configBizModeKey = `ext.guardian.business${suffix}`;
     this.configAdminStatusKey = `ext.guardian.socketio.adminStatus${suffix}`;
-    this.fastModeExpire = 5 * 60; // 5 mins
-    this.slowModeExpire = 0; // default disabled
+    this.supportLiveTransportItems = config.supportLiveTransportItems || ["liveMetrics"];
+    this.liveTransportCache = {};
+    setInterval(() => {
+      this.cleanupLiveTransport()
+    }, (config.cleanInterval || 30) * 1000);
+  }
+
+  cleanupLiveTransport() {
+    for (const item in this.liveTransportCache) {
+      const liveTransport = this.liveTransportCache[item];
+      if (!liveTransport.isLivetimeValid()) {
+        log.info("Destory live transport for ", item);
+        delete this.liveTransportCache[item];
+      }
+    }
+  }
+
+  registerLiveTransport(options) {
+    const item = options.item;
+    if (!(item in this.liveTransportCache)) {
+      log.info("Register live transport for ", item);
+      this.liveTransportCache[item] = new LiveTransport(options);
+    }
+
+    return this.liveTransportCache[item];
   }
 
   getKeySuffix(name) {
@@ -251,7 +274,19 @@ module.exports = class {
     const liveKey = `realtime_send_to_box_${gid}`;
     this.socket.on(liveKey, (message) => {
       if (message.gid === gid) {
-        this.onRealTimeEvent(message);
+        switch (message.action) {
+          case "keepalive":
+            this.setRealtimeExpirationDate();
+            break;
+          case "close":
+            this.resetRealtimeExpirationDate();
+            break;
+          default:
+            this.setRealtimeExpirationDate();
+            this.onRealTimeMessage(gid, message).catch((err) => {
+              log.error(`Failed to process message from group ${gid}`, err, this.name);
+            });
+        }
       }
     })
   }
@@ -307,49 +342,12 @@ module.exports = class {
     return this.realtimeExpireDate && new Date() / 1000 < this.realtimeExpireDate;
   }
 
-  setRealtimeExpirationDate(from) {
-    log.info("from", from);
-    const now = Date.now() / 1000;
-    let extendTiem = 5 * 60;
-    if (from == "liveMetrics") {
-      extendTiem = this.fastModeExpire + this.slowModeExpire;
-    }
-    log.info("jack test extendTiem", extendTiem);
-    this.realtimeExpireDate = Math.floor(now) + extendTiem; // extend expire date
-    this.realtimeRecordDate = now;
+  setRealtimeExpirationDate() {
+    this.realtimeExpireDate = Math.floor(new Date() / 1000) + 300; // extend for 5 mins
   }
 
   resetRealtimeExpirationDate() {
     this.realtimeExpireDate = 0;
-  }
-
-  async onRealTimeEvent(message) {
-    log.info("this.fastModeExpire", this.fastModeExpire);
-    log.info("this.slowModeExpire", this.slowModeExpire);
-    const gid = message.gid;
-    switch (message.action) {
-      case "keepalive":
-        this.setRealtimeExpirationDate(message.from);
-        break;
-      case "close":
-        this.resetRealtimeExpirationDate();
-        break;
-      default:
-        this.setRealtimeExpirationDate(message.from);
-        this.onRealTimeMessage(gid, message).catch((err) => {
-          log.error(`Failed to process message from group ${gid}`, err, this.name);
-        });
-    }
-  }
-
-  getDelay(from) {
-    if (from == "liveMetrics") {
-      const now = Date.now() / 1000;
-      // if still under fast mode time range, send message back every 2 second
-      // otherwise 1 min
-      return now - this.realtimeRecordDate < this.fastModeExpire ? 2000 : 60 * 1000;
-    }
-    return 500;
   }
 
   async onRealTimeMessage(gid, message) {
@@ -360,11 +358,7 @@ module.exports = class {
     const controller = await cw.getNetBotController(gid);
     const mspId = await this.getMspId();
     this.realtimeRunning = true;
-    const from = message.from;
-    let sendBackEvent = "realtime_send_from_box";
-    if (from == "liveMetrics") {
-      sendBackEvent = "send_from_box";
-    }
+
     if (controller && this.socket) {
       const encryptedMessage = message.message;
 
@@ -377,16 +371,16 @@ module.exports = class {
           return; // direct return without doing anything
         }
       }
+
       const decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
       decryptedMessage.mtype = decryptedMessage.message.mtype;
-      decryptedMessage.message.obj.data.value.streaming = { id: decryptedMessage.message.obj.id };
+      decryptedMessage.obj.data.value.streaming = { id: decryptedMessage.message.obj.id };
       decryptedMessage.message.suppressLog = true; // reduce sse message
 
       while (this.isRealtimeValid()) {
-        const delayTime = this.getDelay(from);
         try {
           const response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
-          response.from = from;
+
           const input = Buffer.from(JSON.stringify(response), 'utf8');
           const output = await deflateAsync(input);
 
@@ -397,9 +391,10 @@ module.exports = class {
           });
 
           const encryptedResponse = await encryptMessageAsync(gid, compressedResponse);
+
           try {
             if (this.socket) {
-              this.socket.emit(sendBackEvent, {
+              this.socket.emit("realtime_send_from_box", {
                 message: encryptedResponse,
                 gid: gid,
                 mspId: mspId
@@ -410,10 +405,10 @@ module.exports = class {
             log.error('Socket IO connection error', err);
           }
 
-          await delay(delayTime); // self protection
+          await delay(500); // self protection
         } catch (err) {
           log.error("Got error when handling request, err:", err);
-          await delay(delayTime); // self protection
+          await delay(500); // self protection
           break;
         }
       }
@@ -433,11 +428,18 @@ module.exports = class {
         decryptedMessage = await receicveMessageAsync(gid, encryptedMessage);
         decryptedMessage.mtype = decryptedMessage.message.mtype;
         const obj = decryptedMessage.message.obj;
-        if (obj.data.item == "liveMetrics") {
+        const item = obj.data.item;
+        if (this.supportLiveTransportItems.includes(item)) { // each item can be used under live transport
           const value = obj.data.value || {};
-          this.fastModeExpire = value.fastModeExpire || this.fastModeExpire;
-          this.slowModeExpire = _.isNumber(value.slowModeExpire) ? value.slowModeExpire : this.slowModeExpire; // slow mode can be 0
-          return this.onRealTimeEvent(Object.assign(message, { from: "liveMetrics" }));
+          const liveTransport = this.registerLiveTransport(Object.assign(value, {
+            item: item,
+            gid: gid,
+            mspId: mspId,
+            message: decryptedMessage,
+            replyid: replyid,
+            socket: this.socket
+          }));
+          return liveTransport.onLiveTimeMessage();
         }
         response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
         const input = Buffer.from(JSON.stringify(response), 'utf8');
