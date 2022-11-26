@@ -434,12 +434,12 @@ module.exports = class {
             item: item,
             gid: gid,
             mspId: mspId,
+            alias: this.name,
             message: decryptedMessage,
             replyid: replyid,
             socket: this.socket
           }));
           if (value.close) return liveTransport.resetLivetimeExpirationDate();
-          liveTransport.replyid = replyid;
           return liveTransport.onLiveTimeMessage();
         }
         response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');

@@ -28,22 +28,17 @@ const encryptMessageAsync = Promise.promisify(cw.getCloud().encryptMessage).bind
 const zlib = require('zlib');
 const deflateAsync = Promise.promisify(zlib.deflate);
 
-let instance = null;
-
 class LiveTransport {
   constructor(options) {
-    if (instance === null) {
-      instance = this;
-      this.delay = options.delay || 2; // 2 seconds
-      this.expire = options.expire || 2 * 60; // 5 mins
-      this.socket = options.socket;
-      this.item = options.item;
-      this.message = options.message;
-      this.mspId = options.mspId;
-      this.gid = options.gid;
-      this.replyid = options.replyid;
-    }
-    return instance;
+    this.delay = options.delay || 2; // 2 seconds
+    this.expire = options.expire || 2 * 60; // 5 mins
+    this.socket = options.socket;
+    this.item = options.item;
+    this.message = options.message;
+    this.mspId = options.mspId;
+    this.gid = options.gid;
+    this.replyid = options.replyid;
+    this.guardianAlias = options.alias;
   }
 
   isLivetimeValid() {
@@ -93,7 +88,7 @@ class LiveTransport {
                   replyid: replyid
                 });
               }
-              log.info("response sent to back web cloud via live transport, req id:", message ? this.replyid : "decryption error", this.name);
+              log.info("response sent to back web cloud via live transport, req id:", this.replyid, this.guardianAlias);
             } catch (err) {
               log.error('Socket IO connection error', err);
             }
