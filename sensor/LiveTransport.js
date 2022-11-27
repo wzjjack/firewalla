@@ -71,6 +71,7 @@ class LiveTransport {
         while (this.isLivetimeValid()) {
           try {
             const response = await controller.msgHandlerAsync(gid, message, 'web');
+            message.message.suppressLog = true; // only log info one time then suppress
             response.item = this.alias;
             const input = Buffer.from(JSON.stringify(response), 'utf8');
             const output = await deflateAsync(input);
