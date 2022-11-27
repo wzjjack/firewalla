@@ -429,15 +429,16 @@ module.exports = class {
         const item = obj.data.item;
         const value = JSON.parse(JSON.stringify(obj.data.value || {}))
         if (value.streaming) {
-          const liveTransport = this.registerLiveTransport(Object.assign(value, {
+          const liveTransport = this.registerLiveTransport({
             alias: item,
             gid: gid,
             mspId: mspId,
             guardianAlias: this.name,
             message: decryptedMessage,
+            streaming: value.streaming,
             replyid: replyid,
             socket: this.socket
-          }));
+          });
           if (value.close) return liveTransport.resetLivetimeExpirationDate();
           return liveTransport.onLiveTimeMessage();
         }

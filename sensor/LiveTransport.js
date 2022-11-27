@@ -30,8 +30,6 @@ const deflateAsync = Promise.promisify(zlib.deflate);
 
 class LiveTransport {
   constructor(options) {
-    this.delay = options.delay || 2; // 2 seconds
-    this.expire = options.expire || 2 * 60; // 5 mins
     this.socket = options.socket;
     this.alias = options.alias;
     this.message = options.message;
@@ -39,6 +37,8 @@ class LiveTransport {
     this.gid = options.gid;
     this.replyid = options.replyid;
     this.guardianAlias = options.guardianAlias;
+    this.delay = options.streaming.delay || 2; // 2 seconds
+    this.expire = options.streaming.expire || 2 * 60; // 5 mins
   }
 
   isLivetimeValid() {
