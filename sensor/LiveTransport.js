@@ -33,12 +33,12 @@ class LiveTransport {
     this.delay = options.delay || 2; // 2 seconds
     this.expire = options.expire || 2 * 60; // 5 mins
     this.socket = options.socket;
-    this.item = options.item;
+    this.alias = options.alias;
     this.message = options.message;
     this.mspId = options.mspId;
     this.gid = options.gid;
     this.replyid = options.replyid;
-    this.guardianAlias = options.alias;
+    this.guardianAlias = options.guardianAlias;
   }
 
   isLivetimeValid() {
@@ -47,6 +47,7 @@ class LiveTransport {
 
   setLivetimeExpirationDate() {
     const now = Date.now() / 1000;
+    log.info(`Extend live time for ${this.expire} seconds`);
     this.livetimeExpireDate = Math.floor(now) + this.expire; // extend expire date
   }
 
@@ -70,7 +71,7 @@ class LiveTransport {
         while (this.isLivetimeValid()) {
           try {
             const response = await controller.msgHandlerAsync(gid, message, 'web');
-            response.item = this.item;
+            response.item = this.alias;
             const input = Buffer.from(JSON.stringify(response), 'utf8');
             const output = await deflateAsync(input);
             const compressedResponse = JSON.stringify({

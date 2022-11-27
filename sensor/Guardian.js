@@ -50,7 +50,6 @@ module.exports = class {
     this.configRegionKey = `ext.guardian.socketio.region${suffix}`;
     this.configBizModeKey = `ext.guardian.business${suffix}`;
     this.configAdminStatusKey = `ext.guardian.socketio.adminStatus${suffix}`;
-    this.supportLiveTransportItems = config.supportLiveTransportItems || ["liveMetrics"];
     this.liveTransportCache = {};
     setInterval(() => {
       this.cleanupLiveTransport()
@@ -58,22 +57,22 @@ module.exports = class {
   }
 
   cleanupLiveTransport() {
-    for (const item in this.liveTransportCache) {
-      const liveTransport = this.liveTransportCache[item];
+    for (const alias in this.liveTransportCache) {
+      const liveTransport = this.liveTransportCache[alias];
       if (!liveTransport.isLivetimeValid()) {
-        log.info("Destory live transport for", item);
-        delete this.liveTransportCache[item];
+        log.info("Destory live transport for", alias);
+        delete this.liveTransportCache[alias];
       }
     }
   }
 
   registerLiveTransport(options) {
-    const item = options.item;
-    if (!(item in this.liveTransportCache)) {
-      this.liveTransportCache[item] = new LiveTransport(options);
+    const alias = options.alias;
+    if (!(alias in this.liveTransportCache)) {
+      this.liveTransportCache[alias] = new LiveTransport(options);
     }
 
-    return this.liveTransportCache[item];
+    return this.liveTransportCache[alias];
   }
 
   getKeySuffix(name) {
@@ -428,13 +427,13 @@ module.exports = class {
         decryptedMessage.mtype = decryptedMessage.message.mtype;
         const obj = decryptedMessage.message.obj;
         const item = obj.data.item;
-        if (this.supportLiveTransportItems.includes(item)) { // each item can be used under live transport
-          const value = JSON.parse(JSON.stringify(obj.data.value || {}));
+        const value = JSON.parse(JSON.stringify(obj.data.value || {}))
+        if (value.streaming) {
           const liveTransport = this.registerLiveTransport(Object.assign(value, {
-            item: item,
+            alias: item,
             gid: gid,
             mspId: mspId,
-            alias: this.name,
+            guardianAlias: this.name,
             message: decryptedMessage,
             replyid: replyid,
             socket: this.socket
