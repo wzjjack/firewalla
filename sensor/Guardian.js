@@ -439,8 +439,14 @@ module.exports = class {
             replyid: replyid,
             socket: this.socket
           });
-          if (value.close) return liveTransport.resetLivetimeExpirationDate();
-          return liveTransport.onLiveTimeMessage();
+          switch (value.action) {
+            case "keepalive":
+              return liveTransport.setLivetimeExpirationDate();
+            case "close":
+              return liveTransport.resetLivetimeExpirationDate();
+            default:
+              return liveTransport.onLiveTimeMessage();
+          }
         }
         response = await controller.msgHandlerAsync(gid, decryptedMessage, 'web');
         const input = Buffer.from(JSON.stringify(response), 'utf8');
