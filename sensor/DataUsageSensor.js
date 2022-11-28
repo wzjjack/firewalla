@@ -300,7 +300,7 @@ class DataUsageSensor extends Sensor {
         const lastTs = await rclient.getAsync('monthly:data:usage:lastTs');
         log.info(`Going to generate monthly data usage, plan day ${planDay}, lastTs ${lastTs}`);
         const now = timezone ? moment().tz(timezone) : moment();
-        const days = now.get('date'),month = now.get('month'),year = now.get('year'),;
+        const days = now.get('date'),month = now.get('month'),year = now.get('year');
         const today = new Date(year, month, days);
         const records = [];
         const oneDay = 24 * 60 * 60 * 1000;
