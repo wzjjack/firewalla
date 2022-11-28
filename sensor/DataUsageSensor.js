@@ -63,6 +63,8 @@ class DataUsageSensor extends Sensor {
           if (channel === Message.MSG_SYS_TIMEZONE_RELOADED) {
             log.info(`System timezone is reloaded, update timezone`, message);
             timezone = message;
+            const dataPlan = await this.getDataPlan() || { date: 1 };
+            const { date } = dataPlan;
             await this.cleanMonthlyDataUsage();
             await this.generateLast12MonthDataUsage(date);
           }
