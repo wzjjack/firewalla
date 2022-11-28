@@ -40,6 +40,12 @@ const CronJob = require('cron').CronJob;
 const sem = require('./SensorEventManager.js').getInstance();
 const extensionManager = require('../sensor/ExtensionManager.js')
 const delay = require('../util/util.js').delay;
+
+let timezone;
+const sclient = require('../util/redis_manager.js').getSubscriptionClient();
+const Message = require('../net2/Message.js');
+const moment = require('moment-timezone');
+
 class DataUsageSensor extends Sensor {
     async run() {
         this.refreshInterval = (this.config.refreshInterval || 15) * 60 * 1000;
@@ -278,15 +284,23 @@ class DataUsageSensor extends Sensor {
         this.cornJob = new CronJob(`0 0 0 ${date} * *`, async () => {
             await this.generateLast12MonthDataUsage(date);
         }, null, true)
+        sclient.on("message", async (channel, message) => {
+          if (channel === Message.MSG_SYS_TIMEZONE_RELOADED) {
+            log.info(`System timezone is reloaded, update timezone`, message);
+            timezone = message;
+            await this.cleanMonthlyDataUsage();
+            await this.generateLast12MonthDataUsage(date);
+          }
+        });
+        sclient.subscribe(Message.MSG_SYS_TIMEZONE_RELOADED);
     }
 
     async generateLast12MonthDataUsage(planDay) {
         await rclient.setAsync('monthly:data:usage:ready', '0');
         const lastTs = await rclient.getAsync('monthly:data:usage:lastTs');
         log.info(`Going to generate monthly data usage, plan day ${planDay}, lastTs ${lastTs}`);
-        const now = new Date();
-        const days = now.getDate(), month = now.getMonth(),
-            year = now.getFullYear();
+        const now = timezone ? moment().tz(timezone) : moment();
+        const days = now.get('date'),month = now.get('month'),year = now.get('year'),;
         const today = new Date(year, month, days);
         const records = [];
         const oneDay = 24 * 60 * 60 * 1000;
@@ -303,17 +317,18 @@ class DataUsageSensor extends Sensor {
                 recordTs = new Date(year, m, planDay);
             }
             if (recordTs <= lastTs * 1000) break;
-            const offsetDays = Math.floor((today - recordTs) / oneDay) + hostManager.offsetSlot();
+            const offsetDays = Math.floor((today - recordTs) / oneDay) + 1;
             const download = await getHitsAsync(downloadKey, '1day', offsetDays) || [];
             const upload = await getHitsAsync(uploadKey, '1day', offsetDays) || [];
+            const utcOffset = hostManager.utcOffsetBetweenTimezone(timezone);
             if (i == 0) {
                 const stats = this.getStats({ download, upload }, offsetDays);
-                records.push({ ts: recordTs / 1000, stats: stats })
+                records.push({ ts: (recordTs-utcOffset) / 1000, stats: stats })
             } else {
                 // minus the dedup count
                 const monthlyDays = (records[i - 1].ts * 1000 - recordTs) / oneDay;
                 const stats = this.getStats({ download, upload }, monthlyDays);
-                records.push({ ts: recordTs / 1000, stats: stats })
+                records.push({ ts: (recordTs-utcOffset) / 1000, stats: stats })
             }
         }
         records.shift();
