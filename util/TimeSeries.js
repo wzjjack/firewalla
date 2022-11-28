@@ -37,10 +37,10 @@ var getCurrentTime = function () {
 };
 
 // Round timestamp to the 'precision' interval (in seconds)
-var getRoundedTime = function (precision, time, key) {
+var getRoundedTime = function (precision, time, flag) {
   time = time || getCurrentTime();
   let ts = Math.floor(time / precision) * precision;
-  if (!key) return ts;
+  if (!flag) return ts; // if it is keyTimestamp, return ts directly
   let timeDate, tsDate;
   if (!timezone) {
     timeDate = moment(time * 1000).get('date');
@@ -49,9 +49,6 @@ var getRoundedTime = function (precision, time, key) {
     timeDate = moment(time * 1000).tz(timezone).get('date');
     tsDate = moment(ts * 1000).tz(timezone).get('date');
   }
-  log.info("jack test time", time);
-  log.info("timeDate of", timeDate);
-  log.info("tsDate of", tsDate);
   const oneDay = 24 * 60 * 60;
   if (timeDate == tsDate) { // same day
     return ts;
