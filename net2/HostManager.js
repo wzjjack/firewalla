@@ -448,6 +448,7 @@ module.exports = class HostManager {
   }
 
   utcOffsetBetweenTimezone(timezone) {
+    if (!timezone) return 0;
     const offset1 = moment().utcOffset() * 60 * 1000;
     const offset2 = moment().tz(timezone).utcOffset() * 60 * 1000;
     const offset = offset2 - offset1;
