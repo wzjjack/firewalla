@@ -302,6 +302,7 @@ class DataUsageSensor extends Sensor {
         const lastTs = await rclient.getAsync('monthly:data:usage:lastTs');
         log.info(`Going to generate monthly data usage, plan day ${planDay}, lastTs ${lastTs}`);
         const now = timezone ? moment().tz(timezone) : moment();
+        const utcOffset = hostManager.utcOffsetBetweenTimezone(timezone);
         const days = now.get('date'),month = now.get('month'),year = now.get('year');
         const today = new Date(year, month, days);
         const records = [];
@@ -318,19 +319,19 @@ class DataUsageSensor extends Sensor {
             } else {
                 recordTs = new Date(year, m, planDay);
             }
+            recordTs = recordTs-utcOffset;
             if (recordTs <= lastTs * 1000) break;
             const offsetDays = Math.floor((today - recordTs) / oneDay) + 1;
             const download = await getHitsAsync(downloadKey, '1day', offsetDays) || [];
             const upload = await getHitsAsync(uploadKey, '1day', offsetDays) || [];
-            const utcOffset = hostManager.utcOffsetBetweenTimezone(timezone);
             if (i == 0) {
                 const stats = this.getStats({ download, upload }, offsetDays);
-                records.push({ ts: (recordTs-utcOffset) / 1000, stats: stats })
+                records.push({ ts: recordTs / 1000, stats: stats })
             } else {
                 // minus the dedup count
                 const monthlyDays = (records[i - 1].ts * 1000 - recordTs) / oneDay;
                 const stats = this.getStats({ download, upload }, monthlyDays);
-                records.push({ ts: (recordTs-utcOffset) / 1000, stats: stats })
+                records.push({ ts: recordTs / 1000, stats: stats })
             }
         }
         records.shift();
