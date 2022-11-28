@@ -59,6 +59,15 @@ class DataUsageSensor extends Sensor {
         this.dataPlanMinPercentage = this.config.dataPlanMinPercentage || 0.8;
         this.slot = 4// 1hour 4 slots
         this.hookFeature();
+        sclient.on("message", async (channel, message) => {
+          if (channel === Message.MSG_SYS_TIMEZONE_RELOADED) {
+            log.info(`System timezone is reloaded, update timezone`, message);
+            timezone = message;
+            await this.cleanMonthlyDataUsage();
+            await this.generateLast12MonthDataUsage(date);
+          }
+        });
+        sclient.subscribe(Message.MSG_SYS_TIMEZONE_RELOADED);
         await this.monthlyDataUsageChecker();
     }
     async apiRun() {
@@ -284,15 +293,6 @@ class DataUsageSensor extends Sensor {
         this.cornJob = new CronJob(`0 0 0 ${date} * *`, async () => {
             await this.generateLast12MonthDataUsage(date);
         }, null, true)
-        sclient.on("message", async (channel, message) => {
-          if (channel === Message.MSG_SYS_TIMEZONE_RELOADED) {
-            log.info(`System timezone is reloaded, update timezone`, message);
-            timezone = message;
-            await this.cleanMonthlyDataUsage();
-            await this.generateLast12MonthDataUsage(date);
-          }
-        });
-        sclient.subscribe(Message.MSG_SYS_TIMEZONE_RELOADED);
     }
 
     async generateLast12MonthDataUsage(planDay) {
