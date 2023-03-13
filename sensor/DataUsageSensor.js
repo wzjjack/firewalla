@@ -108,7 +108,7 @@ class DataUsageSensor extends Sensor {
             const dataUsageMdHourWindow = await this.getTimewindowDataUsage(this.mdWindow, mac);
             const hostRecentlyTotalUsage = this.getRecentlyDataUsage(dataUsage, this.smWindow * this.slot)
             const hostDataUsagePercentage = hostRecentlyTotalUsage / systemRecentlyTotalUsage || 0;
-            const end = dataUsage[dataUsage.length - 1].ts;
+            const end = dataUsage[dataUsage.length - 1].ts + 15 * 60; // getHits return begin time as ts for the bucket from begin-end. etc 11:00:00 - 11:15:00, it will return 11:00:00
             const begin = end - this.smWindow * 60 * 60;
             const steps = this.smWindow * this.slot;
             const length = dataUsageSmHourWindow.length;
