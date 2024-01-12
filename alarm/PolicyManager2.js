@@ -386,7 +386,9 @@ class PolicyManager2 {
     const policyKey = policyPrefix + policy.pid;
 
     if (policy instanceof Policy) {
-      await rclient.hmsetAsync(policyKey, policy.redisfy());
+      const policyRedisfy = policy.redisfy();
+      policyRedisfy.updatedTime = Date.now() / 1000;
+      await rclient.hmsetAsync(policyKey, policyRedisfy);
       return;
     }
 
@@ -411,7 +413,9 @@ class PolicyManager2 {
       }
     }
 
-    await rclient.hmsetAsync(policyKey, merged.redisfy());
+    const mergedRedisfy = merged.redisfy();
+    mergedRedisfy.updatedTime = Date.now() / 1000;
+    await rclient.hmsetAsync(policyKey, mergedRedisfy);
 
     const emptyStringCheckKeys = ["expire", "cronTime", "duration", "activatedTime", "remote", "remoteType", "local", "localType", "localPort", "remotePort", "proto", "parentRgId", "targetRgId"];
 
