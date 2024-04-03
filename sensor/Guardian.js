@@ -147,7 +147,7 @@ module.exports = class {
         if (checkResult.id == business.id) {
           result.is_member = true;
         } else {
-          log.forceInfo("The box doesn't belong to the msp anymore. From MSP", business.id);
+          log.forceInfo(`The box doesn't belong to the msp anymore. From MSP:${business.id}, License:${licenseString && licenseString.substring(0, 8)}`);
           result.is_member = false;
         }
       }
