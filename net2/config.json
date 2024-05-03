@@ -809,6 +809,7 @@
       "ignore": {
         "SSL::Invalid_Server_Cert": "ignore",
         "PacketFilter::Dropped_Packets": "ignore",
+        "PacketFilter::Too_Long_To_Compile_Filter": "ignore",
         "Scan::Address_Scan": "ignore",
         "Traceroute::Detected": "ignore",
         "Weird::Activity": "ignore",
