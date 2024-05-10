@@ -1025,6 +1025,22 @@ module.exports = class HostManager extends Monitorable {
     }
   }
 
+  async getMspTargetlist(json) {
+    const data = await rclient.getAsync("ext.guardian.targetlist");
+    if(!data) {
+      return;
+    }
+    try {
+      const result = JSON.parse(data);
+      if(result) {
+        json.mspTargetlist = result;
+      }
+    } catch(err) {
+      log.error(`Failed to parse data, err: ${err}`);
+      return;
+    }
+  }
+
   async getGuardians(json) {
     const Guardian = require('../sensor/Guardian.js');
     const result = []
@@ -1281,6 +1297,7 @@ module.exports = class HostManager extends Monitorable {
       this.getGuessedRouters(json),
       this.getGuardian(json),
       this.getGuardians(json),
+      this.getMspTargetlist(json),
       this.getDataUsagePlan(json),
       this.monthlyDataUsageForInit(json),
       this.networkConfig(json),
