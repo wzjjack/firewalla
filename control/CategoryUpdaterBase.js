@@ -480,7 +480,9 @@ class CategoryUpdaterBase {
 
   // user defined target list on cloud, may include port, protocol
   isUserTargetList(category) {
-    return category.startsWith("TL-");
+    // TL- box managed target list
+    // TLT- msp managed target list
+    return category.startsWith("TL-") || category.startsWith("TLT-");
   }
 
   // msp defined target list, the box can only access the hashset via token instead of id
