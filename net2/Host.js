@@ -1124,6 +1124,7 @@ class Host extends Monitorable {
       localDomain: this.o.localDomain,
       intf: this.o.intf ? this.o.intf : 'Unknown',
       stpPort: this.o.stpPort,
+      updatedTime: this.o.updatedTime
     }
 
     const pickAssignment = [
