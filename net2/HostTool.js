@@ -149,6 +149,7 @@ class HostTool {
     this.cleanupData(hostCopy);
 
     let key = this.getMacKey(hostCopy.mac);
+    hostCopy.updatedTime = Date.now() / 1000;
     await rclient.hmsetAsync(key, hostCopy)
 
     if(skipUpdatingExpireTime) {

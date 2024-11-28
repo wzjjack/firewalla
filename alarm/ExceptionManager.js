@@ -145,7 +145,7 @@ module.exports = class {
     });
   }
 
-  loadExceptions(callback = function() {}) {
+  loadExceptions(callback = function () { }) {
     return util.callbackify(this.loadExceptionsAsync).bind(this)(callback)
   }
 
@@ -443,6 +443,7 @@ module.exports = class {
       return Promise.reject(new Error("Invalid Exception ID"));
     }
 
+    json.updatedTime = Date.now() / 1000;
     if (!json.timestamp) {
       json.timestamp = new Date() / 1000;
     }

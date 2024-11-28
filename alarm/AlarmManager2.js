@@ -497,6 +497,7 @@ module.exports = class {
     if (!alarm instanceof Alarm.Alarm) alarm = this.jsonToAlarm(alarm)
     if (!alarm) throw new Error('Failed to create Alarm object')
 
+    alarm.updatedTime = Date.now() / 1000;
     const alarmKey = alarmPrefix + alarm.aid;
     await rclient.hmsetAsync(alarmKey, alarm.redisfy())
     pclient.publishAsync("alarm:updateCache", JSON.stringify({aid:alarm.aid}));

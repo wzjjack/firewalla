@@ -174,7 +174,7 @@ class Monitorable {
       // it works if fields represents a single key as string
       obj = _.pick(obj, fields)
     }
-
+    obj.updatedTime = Date.now() / 1000;
     log.debug('Saving', this.getMetaKey(), fields, obj)
     if (Object.keys(obj).length)
       await rclient.hmsetAsync(this.getMetaKey(), obj)
@@ -184,11 +184,14 @@ class Monitorable {
 
   async saveSinglePolicy(name, policy) {
     this.policy[name] = policy
+    const now = Date.now() / 1000;
+    this.policy.updatedTime = now;
     const key = this._getPolicyKey()
     if (policy === undefined)
       await rclient.hdelAsync(key, name)
     else
       await rclient.hmsetAsync(key, name, JSON.stringify(policy))
+    await rclient.hset(key, 'updatedTime', now);
   }
 
   setPolicy(name, data, callback = ()=>{}) {
