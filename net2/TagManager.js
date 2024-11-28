@@ -179,7 +179,7 @@ class TagManager {
           const o = Object.assign({}, { uid, name }, tag.o, obj);
           o.updatedTime = Date.now() / 1000;
           const key = `${keyPrefix}${uid}`;
-          await rclient.hmsetAsync(key, o);
+          await rclient.hmsetAsync(key, o); // todo: if ensure the type can't change in this case, we may use tag.update
           changed = true;
         } else return null;
       }

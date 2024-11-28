@@ -118,7 +118,7 @@ class Monitorable {
       if (o[key] === undefined)
         delete o[key];
     })
-
+    o.updatedTime = Date.now() / 1000;
     if (quick)
       Object.assign(this.o, o)
     else
@@ -174,7 +174,6 @@ class Monitorable {
       // it works if fields represents a single key as string
       obj = _.pick(obj, fields)
     }
-    obj.updatedTime = Date.now() / 1000;
     log.debug('Saving', this.getMetaKey(), fields, obj)
     if (Object.keys(obj).length)
       await rclient.hmsetAsync(this.getMetaKey(), obj)
