@@ -37,21 +37,21 @@ const LOOK_AHEAD_INTERVAL = 3600
 
 class FlowTool extends LogQuery {
   trimFlow(flow) {
-    if(!flow)
+    if (!flow)
       return;
 
-    if("flows" in flow)
+    if ("flows" in flow)
       delete flow.flows;
 
-    if("pf" in flow)
+    if ("pf" in flow)
       delete flow.pf;
 
-    if("af" in flow)
+    if ("af" in flow)
       delete flow.af;
 
-//    if("f" in flow)
-//      delete flow.f;
-    if("uids_array" in flow) {
+    //    if("f" in flow)
+    //      delete flow.f;
+    if ("uids_array" in flow) {
       flow.uids = flow.uids_array.filter((v, i) => {
         return flow.uids_array.indexOf(v) === i;
       });
@@ -81,7 +81,7 @@ class FlowTool extends LogQuery {
 
     let o = flow;
 
-    if ( !('upload' in o) || !('download' in o) ) {
+    if (!('upload' in o) || !('download' in o)) {
       return false
     }
     if (o.upload == 0 && o.download == 0) {
@@ -97,15 +97,15 @@ class FlowTool extends LogQuery {
     if (options.block !== true) {
       if (options.local !== true) {
         if (options.direction) {
-          feeds.push(... this.expendFeeds({macs, direction: options.direction}))
+          feeds.push(... this.expendFeeds({ macs, direction: options.direction }))
         } else {
-          feeds.push(... this.expendFeeds({macs, direction: 'in'}))
-          feeds.push(... this.expendFeeds({macs, direction: 'out'}))
+          feeds.push(... this.expendFeeds({ macs, direction: 'in' }))
+          feeds.push(... this.expendFeeds({ macs, direction: 'out' }))
         }
       }
       if (options.localFlow && options.local !== false) {
         // a local flow will be recorded in both src and dst host key, need to deduplicate flows on the two hosts if both hosts are included in macs
-        feeds.push(... this.expendFeeds({macs, localFlow: true, exclude: {dstMac: macs, fd: "out"}}))
+        feeds.push(... this.expendFeeds({ macs, localFlow: true, exclude: { dstMac: macs, fd: "out" } }))
       }
     }
 
@@ -150,9 +150,10 @@ class FlowTool extends LogQuery {
       type: 'ip'
     };
     f.ts = flow._ts; // _ts:update/record time, front-end always show up this
+    f.ets = Number(flow.ts) + Number(flow.du); // add flow ets for consumer merge purpose
     f.fd = flow.fd;
-    f.count = flow.ct || 1,
-    f.duration = flow.du
+    f.count = flow.ct || 1;
+    f.duration = flow.du;
     if (flow.intf) f.intf = networkProfileManager.prefixMap[flow.intf] || flow.intf
     for (const type of Object.keys(Constants.TAG_TYPE_MAP)) {
       const flowKey = Constants.TAG_TYPE_MAP[type].flowKey
@@ -188,17 +189,17 @@ class FlowTool extends LogQuery {
     f.protocol = flow.pr;
 
     try {
-      if(flow.lh === flow.sh) {
+      if (flow.lh === flow.sh) {
         f.port = Number(flow.dp);
         f.devicePort = Number(flow.sp[0]);
       } else {
         f.port = Number(flow.sp[0]);
         f.devicePort = Number(flow.dp);
       }
-    } catch(err) {
+    } catch (err) {
     }
 
-    if(flow.lh === flow.sh) {
+    if (flow.lh === flow.sh) {
       f.ip = flow.dh;
       f.deviceIP = flow.sh;
       f.upload = flow.ob;
@@ -227,7 +228,7 @@ class FlowTool extends LogQuery {
     results.forEach((x) => {
       const ts = x.ts;
       const tenminTS = Math.floor(Number(ts) / 600) * 600;
-      if(!aggrResults[tenminTS]) {
+      if (!aggrResults[tenminTS]) {
         aggrResults[tenminTS] = {
           ts: tenminTS,
           ob: x.ob,
@@ -239,10 +240,10 @@ class FlowTool extends LogQuery {
         old.rb += x.rb
       }
     })
-    return Object.values(aggrResults).sort((x,y) => {
-      if(x.ts > y.ts) {
+    return Object.values(aggrResults).sort((x, y) => {
+      if (x.ts > y.ts) {
         return 1;
-      } else if(x.ts === y.ts) {
+      } else if (x.ts === y.ts) {
         return 0;
       } else {
         return -1;
@@ -258,7 +259,7 @@ class FlowTool extends LogQuery {
 
     const results = await rclient.zrangebyscoreAsync([key, begin, end]);
 
-    if(results === null || results.length === 0) {
+    if (results === null || results.length === 0) {
       return [];
     }
 
@@ -266,7 +267,7 @@ class FlowTool extends LogQuery {
       .map((jsonString) => {
         try {
           return JSON.parse(jsonString);
-        } catch(err) {
+        } catch (err) {
           log.error(`Failed to parse json string: ${jsonString}, err: ${err}`);
           return null;
         }
@@ -290,12 +291,12 @@ class FlowTool extends LogQuery {
     const transfers = [];
 
     if (!options.direction || options.direction === "in") {
-      const t_in = await this._getTransferTrend(deviceMAC, destinationIP, Object.assign({direction: 'in'}, options));
+      const t_in = await this._getTransferTrend(deviceMAC, destinationIP, Object.assign({ direction: 'in' }, options));
       transfers.push.apply(transfers, t_in);
     }
 
     if (!options.direction || options.direction === "out") {
-      const t_out = await this._getTransferTrend(deviceMAC, destinationIP, Object.assign({direction: 'out'}, options));
+      const t_out = await this._getTransferTrend(deviceMAC, destinationIP, Object.assign({ direction: 'out' }, options));
       transfers.push.apply(transfers, t_out);
     }
     return this._aggregateTransferBy10Min(transfers);
@@ -309,9 +310,9 @@ class FlowTool extends LogQuery {
   }
 
   addFlow(mac, type, flow) {
-    let key = this.getLogKey(mac, {direction: type} );
+    let key = this.getLogKey(mac, { direction: type });
 
-    if(typeof flow !== 'object') {
+    if (typeof flow !== 'object') {
       return Promise.reject("Invalid flow type: " + typeof flow);
     }
 
@@ -319,9 +320,9 @@ class FlowTool extends LogQuery {
   }
 
   removeFlow(mac, type, flow) {
-    let key = this.getLogKey(mac, {direction: type} );
+    let key = this.getLogKey(mac, { direction: type });
 
-    if(typeof flow !== 'object') {
+    if (typeof flow !== 'object') {
       return Promise.reject("Invalid flow type: " + typeof flow);
     }
 
@@ -330,7 +331,7 @@ class FlowTool extends LogQuery {
 
   // legacy api, returns raw redis data
   queryFlows(mac, type, begin, end) {
-    let key = this.getLogKey(mac, {direction: type});
+    let key = this.getLogKey(mac, { direction: type });
 
     return rclient.zrangebyscoreAsync(key, "(" + begin, end) // char '(' means open interval
       .then(flowStrings =>
@@ -339,11 +340,11 @@ class FlowTool extends LogQuery {
   }
 
   getDestIP(flow) {
-    if(!flow) {
+    if (!flow) {
       return null
     }
 
-    if(flow.lh === flow.sh) {
+    if (flow.lh === flow.sh) {
       return flow.dh;
     } else {
       return flow.sh;
@@ -351,7 +352,7 @@ class FlowTool extends LogQuery {
   }
 
   getDownloadTraffic(flow) {
-    if(flow.lh === flow.sh) {
+    if (flow.lh === flow.sh) {
       return flow.rb;
     } else {
       return flow.ob;
@@ -359,7 +360,7 @@ class FlowTool extends LogQuery {
   }
 
   getUploadTraffic(flow) {
-    if(flow.lh === flow.sh) {
+    if (flow.lh === flow.sh) {
       return flow.ob;
     } else {
       return flow.rb;
