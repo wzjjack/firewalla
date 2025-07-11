@@ -85,6 +85,10 @@ module.exports = class {
     return this.liveTransportCache[alias];
   }
 
+  isMsp() {
+    return this.name != 'default'; // default means the box login to my.firewalla.com
+  }
+
   getKeySuffix(name) {
     if (name == "default") return '';
     return name ? `.${name.toLowerCase()}` : '';
@@ -104,7 +108,9 @@ module.exports = class {
     }
     this.checkId = setInterval(async () => {
       await this.handlLegacy();
-      await this.start(); // try to reconnect sio if no message coming from msp in 15mins
+      if (this.isMsp()) {
+        await this.start(); // try to reconnect sio if no message coming from msp in 15mins
+      }
     }, 15 * 60 * 1000) // check every 15 mins
   }
 
